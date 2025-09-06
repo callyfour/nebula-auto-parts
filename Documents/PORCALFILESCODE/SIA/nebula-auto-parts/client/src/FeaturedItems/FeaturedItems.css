@@ -1,0 +1,82 @@
+.featured-section {
+  padding: 3rem 20px;
+  background: #000;
+  font-family: Arial, sans-serif;
+}
+
+.section-title {
+  font-size: 2.5rem;
+  font-weight: bold;
+  margin-bottom: 40px;
+  color: #fff;
+}
+
+.cards-container {
+  display: flex;
+  justify-content: center;
+  text-align: center;
+  flex-wrap: wrap;
+  gap: 10rem;
+}
+
+.card {
+  background: transparent;
+  border-radius: 32px;
+  overflow: hidden;
+  width: auto;
+  box-shadow: none;
+  transition: transform 0.3s;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 34px 0 22px 0;
+}
+
+.card:hover {
+  transform: translateY(-8px);
+}
+
+.card-image {
+  width: 400px;
+  height: 300px;
+  background: #ffffff;
+  border-radius: 32px;
+  object-fit: contain;
+  margin-bottom: 32px;
+  display: block;
+}
+
+.card-title {
+  font-size: 1.15rem;
+  color: #ffffff;
+  font-weight: bold;
+  margin-bottom: 12px;
+}
+
+.card-price {
+  font-size: 1.1rem;
+  color: #ff3434;
+  font-weight: bold;
+  margin-top: 4px;
+}
+
+@media (max-width: 1000px) {
+  .cards-container {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 650px) {
+  .card {
+    width: 95%;
+  }
+}
+
+.white-pagebreak {
+  width: 100%;
+  display: block;
+  margin-top: -50px; /* adjust this to control overlap */
+}
