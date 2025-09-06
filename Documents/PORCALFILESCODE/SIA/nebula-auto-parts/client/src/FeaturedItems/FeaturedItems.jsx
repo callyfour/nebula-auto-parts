@@ -3,28 +3,36 @@ import "./FeaturedItems.css";
 import pagebreak from "../assets/white-pagebreak.png";
 
 const FeaturedSection = () => {
-  const [items, setItems] = useState([]); // ✅ added
-  const [loading, setLoading] = useState(true); // ✅ added
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
+  // Use backend URL based on environment
   const API_BASE =
     import.meta.env.MODE === "development"
       ? "http://localhost:5000"
-      : "https://your-render-app.onrender.com"; // replace with your Render URL
+      : "https://your-backend-url.up.railway.app"; // replace with your Railway backend URL
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/featured-items`)
-      .then((res) => res.json())
-      .then((data) => {
+    const fetchItems = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/featured-items`);
+        if (!res.ok) throw new Error("Failed to fetch featured items");
+        const data = await res.json();
         setItems(data);
-        setLoading(false); // ✅ mark as loaded
-      })
-      .catch((err) => {
+      } catch (err) {
         console.error(err);
-        setLoading(false); // ✅ stop loading on error
-      });
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchItems();
   }, []);
 
   if (loading) return <p>Loading featured items...</p>;
+  if (error) return <p>Error: {error}</p>;
 
   return (
     <>
@@ -36,7 +44,8 @@ const FeaturedSection = () => {
               <div key={item._id} className="card">
                 <img src={item.image} alt={item.title} className="card-image" />
                 <h3 className="card-title">{item.title}</h3>
-                <p className="card-price">₱ {item.price}</p>
+                {/* Optional price field if your backend has it */}
+                {item.price && <p className="card-price">₱ {item.price}</p>}
               </div>
             ))
           ) : (
