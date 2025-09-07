@@ -1,19 +1,19 @@
 [
   {
     "id": 1,
-    "name": "Brake Pad",
+    "name": "Recaro RSS",
     "description": "High-quality brake pads for safety.",
     "price": 1500,
-    "brand": "Toyota",
-    "image": "https://via.placeholder.com/400x300?text=Brake+Pad"
+    "brand": "Recaro",
+    "image": "https://res.cloudinary.com/dgoaerd03/image/upload/v1757209293/recaro_rss_o9rltu.png"
   },
   {
     "id": 2,
-    "name": "Oil Filter",
+    "name": "Recaro Kids Child Car Seat Monza Nova IS SeatFix Racing Edition",
     "description": "Durable oil filter for smooth engine performance.",
     "price": 700,
-    "brand": "Toyota",
-    "image": "https://via.placeholder.com/400x300?text=Oil+Filter"
+    "brand": "Recaro",
+    "image": "https://res.cloudinary.com/dgoaerd03/image/upload/v1757252009/Recaro_Kids_Child_Car_Seat_Monza_Nova_IS_SeatFix_Racing_Edition_oe3l3k.png"
   },
   {
     "id": 3,
