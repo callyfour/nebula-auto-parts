@@ -8,9 +8,8 @@ import PromoSection from "./PromoSection/PromoSection.jsx";
 import Footer from "./Footer/Footer.jsx";
 import Shop from "./Shop.jsx";
 import ProductPage from "./ProductPage/ProductPage.jsx";
-
+import ScrollToTop from "./ScrollToTop.jsx";
 import "boxicons/css/boxicons.min.css";
-import ScrollToTop from "../ScrollToTop.jsx";
 
 function App() {
   return (
