@@ -1,0 +1,173 @@
+.shopparts-product-category {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 6rem;
+}
+
+.brand-btn {
+  padding: 0.5rem 2rem;
+  border: 1px solid #fff;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.3s, color 0.3s;
+}
+
+.brand-btn:hover {
+  background: #fff;
+  color: #000;
+}
+
+.brand-btn.active {
+  background: #ff3434;
+  border-color: #ff3434;
+  color: #fff;
+}
+
+/* Product Grid */
+.shopparts-product-container {
+  display: flex;
+  justify-content: center;
+  text-align: center;
+  flex-wrap: wrap;
+  gap: 4rem;
+}
+
+.shopparts-product-card {
+  background: transparent;
+  border-radius: 32px;
+  overflow: hidden;
+  width: auto;
+  box-shadow: none;
+  transition: transform 0.3s;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 34px 0 22px 0;
+}
+
+.shopparts-product-card:hover {
+  transform: translateY(-8px);
+}
+
+.shopparts-product-image {
+  width: 400px;
+  height: 300px;
+  background: #ffffff;
+  border-radius: 32px;
+  object-fit: contain;
+  margin-bottom: 32px;
+  display: block;
+}
+
+.shopparts-product-title {
+  font-size: 1rem;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+
+.shopparts-product-price {
+  font-size: 0.95rem;
+  color: #ff3434;
+  font-weight: bold;
+}
+
+/* Responsive */
+@media (max-width: 1000px) {
+  .shopparts-product-container {
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 650px) {
+  .shopparts-product-card {
+    width: 95%;
+  }
+}
+
+/* Modal overlay */
+.shopparts-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+}
+
+/* Modal content */
+.shopparts-modal-content {
+  background: #000000;
+  padding: 2rem;
+  border-radius: 16px;
+  max-width: 500px;
+  width: 90%;
+  position: relative;
+  text-align: center;
+}
+
+.shopparts-modal-close {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+.shopparts-modal-image {
+  width: 100%;
+  max-height: 300px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.shopparts-modal-price {
+  font-weight: bold;
+  margin: 10px 0;
+  font-size: 1.2rem;
+}
+
+.shopparts-quantity-selector {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 1rem 0;
+  gap: 1rem;
+}
+
+.shopparts-quantity-selector button {
+  width: 32px;
+  height: 32px;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.shopparts-modal-actions button {
+  padding: 0.6rem 1.2rem;
+  margin: 0 0.5rem;
+  cursor: pointer;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+}
+
+.shopparts-modal-actions button:first-child {
+  background-color: #ff3434;
+  color: #fff;
+}
+
+.shopparts-modal-actions button:last-child {
+  background-color: #00aaff;
+  color: #fff;
+}

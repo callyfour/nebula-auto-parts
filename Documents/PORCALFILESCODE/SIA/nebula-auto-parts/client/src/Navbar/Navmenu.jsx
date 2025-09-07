@@ -1,23 +1,25 @@
+import { Link } from "react-router-dom";
+
 const NavMenu = () => {
   return (
     <ul className="nav-menu">
       <li>
-        <a href="">Home</a>
+        <Link to="/">Home</Link>
       </li>
       <li>
-        <a href="Shop.jsx">Shop Parts</a>
+        <Link to="/shop">Shop Parts</Link>
       </li>
       <li>
-        <a href="">Contact Us</a>
+        <Link to="/contact">Contact Us</Link>
       </li>
       <li>
-        <a href="">About Us</a>
+        <Link to="/about">About Us</Link>
       </li>
       <li>
-        <a href="">Gallery</a>
+        <Link to="/gallery">Gallery</Link>
       </li>
       <li>
-        <a href="">Cart</a>
+        <Link to="/cart">Cart</Link>
       </li>
     </ul>
   );

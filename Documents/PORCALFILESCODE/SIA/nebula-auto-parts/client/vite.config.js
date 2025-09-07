@@ -5,4 +5,9 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   base: '/',
   plugins: [react()],
+  server: {
+    fs: {
+      allow: ['.'], // ensures Vite can serve all project files
+    },
+  },
 })
