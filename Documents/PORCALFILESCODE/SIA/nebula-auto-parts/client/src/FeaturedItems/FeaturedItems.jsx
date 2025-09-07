@@ -11,7 +11,7 @@ const FeaturedSection = () => {
   const API_BASE =
     import.meta.env.MODE === "development"
       ? "http://localhost:5000"
-      : "https://your-backend-url.up.railway.app"; // replace with your Railway backend URL
+      : "https://your-backend-url.onrender.com";
 
   useEffect(() => {
     const fetchItems = async () => {
