@@ -36,7 +36,7 @@ const productSchema = new mongoose.Schema({
   image: String,
 });
 
-const Product = mongoose.model("Product", productSchema, "products");
+const Product = mongoose.model("Product", productSchema, "productItems");
 
 // --- Seed Featured Items if empty ---
 mongoose.connection.once("open", async () => {
