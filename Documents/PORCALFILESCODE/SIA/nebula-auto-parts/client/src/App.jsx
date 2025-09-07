@@ -1,8 +1,8 @@
 import Navbar from "./Navbar/Navbar.jsx";
 import Header from "./Header/Header.jsx";
-import Carousel from "../CarouselSection/CarouselSection.jsx";
+import Carousel from "./CarouselSection/CarouselSection.jsx";
 import AppointBanner from "./AppointBanner/AppointBanner.jsx";
-import FeaturedSection from "../FeaturedItems/FeaturedItems.jsx";
+import FeaturedSection from "./FeaturedItems/FeaturedItems.jsx";
 import PromoSection from "./PromoSection/PromoSection.jsx";
 
 import "boxicons/css/boxicons.min.css";
