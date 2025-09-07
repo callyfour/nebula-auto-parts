@@ -7,17 +7,35 @@ const placeholderImg = "https://via.placeholder.com/400x300?text=Car+Part";
 const ProductPage = () => {
   const { id } = useParams();
   const [product, setProduct] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const API_BASE =
+    import.meta.env.MODE === "development"
+      ? "http://localhost:5000"
+      : import.meta.env.VITE_API_BASE;
 
   useEffect(() => {
-    fetch(`http://localhost:5000/api/products/${id}`)
-      .then((res) => res.json())
-      .then((data) =>
-        setProduct({ ...data, image: data.image || placeholderImg })
-      )
-      .catch((err) => console.error(err));
-  }, [id]);
+    const fetchProduct = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/products/${id}`);
+        if (!res.ok) throw new Error("Failed to fetch product");
+        const data = await res.json();
+        setProduct({ ...data, image: data.image || placeholderImg });
+      } catch (err) {
+        console.error(err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  if (!product) return <p>Loading...</p>;
+    fetchProduct();
+  }, [id, API_BASE]);
+
+  if (loading) return <p>Loading product...</p>;
+  if (error) return <p>Error: {error}</p>;
+  if (!product) return <p>Product not found.</p>;
 
   return (
     <div className="product-page">
