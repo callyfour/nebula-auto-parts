@@ -8,10 +8,7 @@ const FeaturedSection = () => {
   const [error, setError] = useState(null);
 
   // Use backend URL based on environment
-  const API_BASE =
-    import.meta.env.MODE === "development"
-      ? "http://localhost:5000"
-      : "https://your-backend-url.onrender.com";
+  const API_BASE = import.meta.env.VITE_API_BASE;
 
   useEffect(() => {
     const fetchItems = async () => {
