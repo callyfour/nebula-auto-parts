@@ -10,10 +10,12 @@ import Shop from "./Shop.jsx";
 import ProductPage from "./ProductPage/ProductPage.jsx";
 
 import "boxicons/css/boxicons.min.css";
+import ScrollToTop from "../ScrollToTop.jsx";
 
 function App() {
   return (
     <>
+      <ScrollToTop />
       <Navbar />
       <Routes>
         <Route
