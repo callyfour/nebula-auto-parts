@@ -5,7 +5,7 @@ const NavMenu = () => {
         <a href="">Home</a>
       </li>
       <li>
-        <a href="">Shop Parts</a>
+        <a href="Shop.jsx">Shop Parts</a>
       </li>
       <li>
         <a href="">Contact Us</a>
