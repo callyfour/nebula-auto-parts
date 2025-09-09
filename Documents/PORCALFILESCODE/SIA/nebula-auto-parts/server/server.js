@@ -26,12 +26,7 @@ const featuredItemSchema = new mongoose.Schema({
   description: { type: String, required: true },
   image: { type: String, required: true },
 });
-
-const FeaturedItem = mongoose.model(
-  "FeaturedItem",
-  featuredItemSchema,
-  "featuredItems"
-);
+const FeaturedItem = mongoose.model("FeaturedItem", featuredItemSchema, "featuredItems");
 
 // --- Product Schema & Model ---
 const productSchema = new mongoose.Schema({
@@ -42,125 +37,15 @@ const productSchema = new mongoose.Schema({
   brand: { type: String, required: true },
   image: { type: String, required: true },
 });
-
 const Product = mongoose.model("Product", productSchema, "productItems");
 
 // --- User Schema & Model ---
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
+  password: { type: String, required: true }, // ⚠️ in production, hash this
 });
-
 const User = mongoose.model("User", userSchema, "users");
-
-// --- Seed Featured Items & Products ---
-mongoose.connection.once("open", async () => {
-  try {
-    const featuredCount = await FeaturedItem.countDocuments();
-    if (featuredCount === 0) {
-      await FeaturedItem.insertMany([
-        {
-          title: "Item One",
-          description: "Description for item one.",
-          image: "https://via.placeholder.com/300x200",
-        },
-        {
-          title: "Item Two",
-          description: "Description for item two.",
-          image: "https://via.placeholder.com/300x200",
-        },
-        {
-          title: "Item Three",
-          description: "Description for item three.",
-          image: "https://via.placeholder.com/300x200",
-        },
-      ]);
-      console.log("🌱 Seeded database with 3 featured items.");
-    }
-
-    const productCount = await Product.countDocuments();
-    if (productCount === 0) {
-      await Product.insertMany([
-        {
-          id: 1,
-          name: "Brake Pad",
-          description: "High-quality brake pads for safety.",
-          price: 1500,
-          brand: "Toyota",
-          image: "https://via.placeholder.com/400x300?text=Brake+Pad",
-        },
-        {
-          id: 2,
-          name: "Oil Filter",
-          description: "Durable oil filter for smooth engine performance.",
-          price: 700,
-          brand: "Toyota",
-          image: "https://via.placeholder.com/400x300?text=Oil+Filter",
-        },
-        {
-          id: 3,
-          name: "Air Filter",
-          description: "Keeps air intake clean and efficient.",
-          price: 800,
-          brand: "Honda",
-          image: "https://via.placeholder.com/400x300?text=Air+Filter",
-        },
-        {
-          id: 4,
-          name: "Spark Plug",
-          description: "Reliable spark plugs for consistent ignition.",
-          price: 400,
-          brand: "Honda",
-          image: "https://via.placeholder.com/400x300?text=Spark+Plug",
-        },
-        {
-          id: 5,
-          name: "Battery",
-          description: "Long-lasting battery for all weather conditions.",
-          price: 3000,
-          brand: "Nissan",
-          image: "https://via.placeholder.com/400x300?text=Battery",
-        },
-        {
-          id: 6,
-          name: "Brake Disc",
-          description: "Premium brake disc for optimal stopping power.",
-          price: 2200,
-          brand: "Nissan",
-          image: "https://via.placeholder.com/400x300?text=Brake+Disc",
-        },
-        {
-          id: 7,
-          name: "Clutch Kit",
-          description: "Complete clutch kit for smooth gear changes.",
-          price: 4500,
-          brand: "Toyota",
-          image: "https://via.placeholder.com/400x300?text=Clutch+Kit",
-        },
-        {
-          id: 8,
-          name: "Timing Belt",
-          description: "Durable timing belt to prevent engine damage.",
-          price: 1200,
-          brand: "Honda",
-          image: "https://via.placeholder.com/400x300?text=Timing+Belt",
-        },
-        {
-          id: 9,
-          name: "Radiator",
-          description: "High-efficiency radiator to prevent overheating.",
-          price: 3500,
-          brand: "Nissan",
-          image: "https://via.placeholder.com/400x300?text=Radiator",
-        },
-      ]);
-      console.log("🌱 Seeded database with 9 products.");
-    }
-  } catch (err) {
-    console.error("❌ Error seeding database:", err);
-  }
-});
 
 // --- Routes ---
 app.get("/", (req, res) => res.send("✅ Backend is running!"));
@@ -205,17 +90,34 @@ app.post("/api/register", async (req, res) => {
     // check if user exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ message: "Email already registered" });
+      return res.status(400).json({ success: false, message: "Email already registered" });
     }
 
     // save new user
     const newUser = new User({ name, email, password });
     await newUser.save();
 
-    res.status(201).json({ message: "User registered successfully!" });
+    res.status(201).json({ success: true, message: "User registered successfully!" });
   } catch (err) {
     console.error("❌ Error registering user:", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// --- Login User ---
+app.post("/api/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    const user = await User.findOne({ email, password }); // ⚠️ plain check
+    if (!user) {
+      return res.status(401).json({ success: false, message: "Invalid email or password" });
+    }
+
+    res.json({ success: true, message: "Login successful", user });
+  } catch (err) {
+    console.error("❌ Error logging in:", err);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
