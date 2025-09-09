@@ -1,10 +1,14 @@
+import { useNavigate } from "react-router-dom";
+
 const NavRight = () => {
+  const navigate = useNavigate();
+
   return (
     <div className="navbar-right">
       <button
         className="svg-btn login-btn"
         type="button"
-        onClick={() => (window.location.href = '#')}
+        onClick={() => navigate("/login")} // 👈 redirect to /login
       >
         {/* SVG background */}
         <svg
@@ -14,10 +18,7 @@ const NavRight = () => {
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
         >
-          <polygon
-            points="10,0 50,0 50,40 40,50 0,50 0,10"
-            fill="#1f1f1f"
-          />
+          <polygon points="10,0 50,0 50,40 40,50 0,50 0,10" fill="#1f1f1f" />
         </svg>
 
         {/* Icon centered on top of SVG */}
@@ -29,7 +30,7 @@ const NavRight = () => {
       {/* Search Bar */}
       <input type="text" placeholder="Search..." className="search-bar" />
     </div>
-  )
-}
+  );
+};
 
-export default NavRight
+export default NavRight;

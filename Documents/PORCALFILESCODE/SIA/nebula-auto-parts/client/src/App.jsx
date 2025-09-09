@@ -8,6 +8,8 @@ import PromoSection from "./PromoSection/PromoSection.jsx";
 import Footer from "./Footer/Footer.jsx";
 import Shop from "./Shop.jsx";
 import ProductPage from "./ProductPage/ProductPage.jsx";
+import Login from "./Login/Login.jsx";
+import Register from "./Register/Register.jsx"; // ✅ import Register
 import ScrollToTop from "./ScrollToTop.jsx";
 import "boxicons/css/boxicons.min.css";
 
@@ -31,6 +33,9 @@ function App() {
         />
         <Route path="/shop/*" element={<Shop />} />
         <Route path="/product/:id" element={<ProductPage />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />{" "}
+        {/* ✅ Register route */}
       </Routes>
       <Footer />
     </>

@@ -7,11 +7,11 @@ import { FaXTwitter } from "react-icons/fa6";
 import b1 from "../assets/brands/1.png";
 import b2 from "../assets/brands/2.png";
 import b3 from "../assets/brands/3.png";
+import b4 from "../assets/brands/4.png";
 import b5 from "../assets/brands/5.png";
 import b6 from "../assets/brands/6.png";
 import b7 from "../assets/brands/7.png";
 import b8 from "../assets/brands/8.png";
-import b10 from "../assets/brands/10.png";
 
 const Footer = () => {
   return (
@@ -21,11 +21,11 @@ const Footer = () => {
         <img src={b1} alt="Brand 1" />
         <img src={b2} alt="Brand 2" />
         <img src={b3} alt="Brand 3" />
+        <img src={b4} alt="Brand 4" />
         <img src={b5} alt="Brand 5" />
         <img src={b6} alt="Brand 6" />
         <img src={b7} alt="Brand 7" />
         <img src={b8} alt="Brand 8" />
-        <img src={b10} alt="Brand 10" />
       </div>
 
       {/* Info Sections */}
