@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import "./Products.css";
 import pagebreak from "../assets/nebula-pagebreak.png";
 
@@ -7,6 +7,11 @@ const Products = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedBrand, setSelectedBrand] = useState("All");
+
+  const location = useLocation(); // 👈 get search params from URL
+  const searchParams = new URLSearchParams(location.search);
+  const searchQuery = searchParams.get("search") || "";
 
   const API_BASE =
     import.meta.env.MODE === "development"
@@ -16,7 +21,14 @@ const Products = () => {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/products`);
+        let url = `${API_BASE}/api/products`;
+
+        // 👇 If search query exists, call /api/search instead
+        if (searchQuery) {
+          url = `${API_BASE}/api/search?q=${encodeURIComponent(searchQuery)}`;
+        }
+
+        const res = await fetch(url);
         if (!res.ok) throw new Error("Failed to fetch products");
         const data = await res.json();
         setProducts(data);
@@ -29,10 +41,11 @@ const Products = () => {
     };
 
     fetchProducts();
-  }, []);
+  }, [searchQuery, API_BASE]);
 
-  const [selectedBrand, setSelectedBrand] = useState("All");
+  // unique brands from fetched products
   const brands = ["All", ...new Set(products.map((p) => p.brand))];
+
   const filteredProducts =
     selectedBrand === "All"
       ? products

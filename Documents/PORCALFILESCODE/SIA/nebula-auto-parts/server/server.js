@@ -121,6 +121,25 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
+app.get("/api/search", async (req, res) => {
+  try {
+    const query = req.query.q; // e.g. /api/search?q=brake
+    if (!query) {
+      return res.status(400).json({ message: "Search query is required" });
+    }
+
+    // Case-insensitive regex search
+    const products = await Product.find({
+      name: { $regex: query, $options: "i" },
+    });
+
+    res.json(products);
+  } catch (err) {
+    console.error("❌ Search error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 // --- Start Server ---
 app.listen(PORT, () =>
   console.log(`🚀 Server running on http://localhost:${PORT}`)
