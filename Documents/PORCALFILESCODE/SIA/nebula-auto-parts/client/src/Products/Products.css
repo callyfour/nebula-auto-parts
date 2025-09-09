@@ -31,9 +31,15 @@
 .shopparts-product-container {
   display: flex;
   justify-content: center;
-  text-align: center;
   flex-wrap: wrap;
   gap: 4rem;
+}
+
+/* Remove default link color and underline */
+.shopparts-product-card-link {
+  text-decoration: none;
+  color: inherit; /* inherit text color inside */
+  display: inline-block; /* makes the whole card clickable */
 }
 
 .shopparts-product-card {
@@ -46,7 +52,7 @@
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center; /* keep image centered */
   padding: 34px 0 22px 0;
 }
 
@@ -64,10 +70,17 @@
   display: block;
 }
 
+/* ✅ Text area (left-aligned only) */
+.shopparts-product-info {
+  text-align: left;
+  width: 100%;
+}
+
 .shopparts-product-title {
   font-size: 1rem;
   font-weight: bold;
   margin-bottom: 0.5rem;
+  color: #fff;
 }
 
 .shopparts-product-price {
