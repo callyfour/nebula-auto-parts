@@ -1,7 +1,9 @@
 import { useState } from "react";
-import Navbar from "../Navbar/Navbar.jsx"; // adjust path if needed
-import "./Login.css"; // import external css
+import { Link } from "react-router-dom"; // ✅ import Link
+import Navbar from "../Navbar/Navbar.jsx";
+import "./Login.css";
 import promoPhoto from "../assets/promo-photo.png";
+
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -53,7 +55,8 @@ export default function Login() {
             </button>
 
             <p className="signup">
-              Don’t have an account? <a href="#">Sign up</a>
+              Don’t have an account? <Link to="/register">Sign up</Link>{" "}
+              {/* ✅ updated */}
             </p>
           </form>
         </div>
