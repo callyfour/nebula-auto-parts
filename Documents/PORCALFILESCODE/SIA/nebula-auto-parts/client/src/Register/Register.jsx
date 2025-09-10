@@ -45,9 +45,6 @@ export default function Register() {
       <div className="login-wrapper">
         {/* Left - Register Form */}
         <div className="login-form">
-          <div className="logo">
-            <img src="/logo.png" alt="Nebula Logo" />
-          </div>
           <h2>Create Account</h2>
           <p className="subtitle">Fill in your details to register</p>
 

@@ -37,9 +37,6 @@ export default function Login() {
       <Navbar />
       <div className="login-wrapper">
         <div className="login-form">
-          <div className="logo">
-            <img src="/logo.png" alt="Nebula Logo" />
-          </div>
           <h2>Welcome back</h2>
           <p className="subtitle">Please enter your account details</p>
 
