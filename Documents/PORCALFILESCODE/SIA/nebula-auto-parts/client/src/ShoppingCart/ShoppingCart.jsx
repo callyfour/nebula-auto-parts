@@ -10,7 +10,7 @@ const ShoppingCart = () => {
       ? "http://localhost:5000"
       : import.meta.env.VITE_API_BASE;
 
-  // Fetch cart items from backend
+  // Fetch cart items
   useEffect(() => {
     const fetchCart = async () => {
       try {
@@ -24,11 +24,9 @@ const ShoppingCart = () => {
         setLoading(false);
       }
     };
-
     fetchCart();
   }, [API_BASE]);
 
-  // Increase quantity
   const handleIncrease = async (id) => {
     try {
       const res = await fetch(`${API_BASE}/api/cart/${id}`, {
@@ -43,7 +41,6 @@ const ShoppingCart = () => {
     }
   };
 
-  // Decrease quantity
   const handleDecrease = async (id) => {
     try {
       const res = await fetch(`${API_BASE}/api/cart/${id}`, {
@@ -58,7 +55,6 @@ const ShoppingCart = () => {
     }
   };
 
-  // Delete item
   const handleDelete = async (id) => {
     try {
       await fetch(`${API_BASE}/api/cart/${id}`, { method: "DELETE" });
@@ -68,7 +64,6 @@ const ShoppingCart = () => {
     }
   };
 
-  // Calculate total
   const totalPrice = cart.reduce(
     (acc, item) => acc + item.price * item.quantity,
     0
@@ -78,42 +73,68 @@ const ShoppingCart = () => {
 
   return (
     <div className="shopping-cart">
-      <h2>🛒 Shopping Cart</h2>
+      {/* Step Tracker */}
+      <div className="step-tracker">
+        <div className="step active">
+          1<br />
+          Shopping Cart
+        </div>
+        <div className="step">
+          2<br />
+          Checking details
+        </div>
+        <div className="step">
+          3<br />
+          Order Complete
+        </div>
+      </div>
+
+      {/* Select All + Delete */}
+      <div className="cart-header">
+        <label>
+          <input type="checkbox" /> Select All
+        </label>
+        <button className="delete-btn">Delete</button>
+      </div>
+
+      {/* Cart Items */}
       {cart.length === 0 ? (
-        <p>Your cart is empty.</p>
+        <p className="empty-cart">Your cart is empty.</p>
       ) : (
-        <>
-          {cart.map((item) => (
-            <div key={item._id} className="cart-item">
-              <img
-                src={item.image}
-                alt={item.name}
-                className="cart-item-image"
-              />
-              <div className="cart-item-info">
-                <h3>{item.name}</h3>
-                <p>₱ {item.price}</p>
-                <div className="cart-item-controls">
-                  <button onClick={() => handleDecrease(item._id)}>-</button>
-                  <span>{item.quantity}</span>
-                  <button onClick={() => handleIncrease(item._id)}>+</button>
-                </div>
-                <button
-                  className="remove-btn"
-                  onClick={() => handleDelete(item._id)}
-                >
-                  Remove
-                </button>
+        cart.map((item) => (
+          <div key={item._id} className="cart-item">
+            <img src={item.image} alt={item.name} className="cart-item-image" />
+            <div className="cart-item-info">
+              <h3>{item.name}</h3>
+              <p>Quantity {item.quantity}</p>
+              <p className="price">₱ {item.price.toLocaleString()}</p>
+              <div className="cart-item-controls">
+                <button onClick={() => handleDecrease(item._id)}>-</button>
+                <span>{item.quantity}</span>
+                <button onClick={() => handleIncrease(item._id)}>+</button>
               </div>
             </div>
-          ))}
-
-          <div className="cart-summary">
-            <h3>Total: ₱ {totalPrice}</h3>
-            <button className="checkout-btn">Proceed to Checkout</button>
+            <button
+              className="remove-icon"
+              onClick={() => handleDelete(item._id)}
+            >
+              🗑
+            </button>
           </div>
-        </>
+        ))
       )}
+
+      {/* Bottom Buttons */}
+      <div className="cart-footer">
+        <div className="cart-footer-left">
+          <button>Track my order</button>
+          <button>My Purchases</button>
+          <button>Shop more</button>
+        </div>
+        <div className="cart-footer-right">
+          <button className="checkout-btn">Proceed to Checkout</button>
+        </div>
+      </div>
     </div>
   );
 };
