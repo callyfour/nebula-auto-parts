@@ -9,12 +9,14 @@ const ProductPage = () => {
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [quantity, setQuantity] = useState(1);
 
   const API_BASE =
     import.meta.env.MODE === "development"
       ? "http://localhost:5000"
       : import.meta.env.VITE_API_BASE;
 
+  // Fetch product
   useEffect(() => {
     const fetchProduct = async () => {
       try {
@@ -32,6 +34,40 @@ const ProductPage = () => {
 
     fetchProduct();
   }, [id, API_BASE]);
+
+  // Handle Add to Cart
+  const handleAddToCart = async () => {
+    if (!product) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/api/cart`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId: product.id,
+          name: product.name,
+          price: product.price,
+          image: product.image,
+          quantity: quantity,
+        }),
+      });
+
+      if (!res.ok) throw new Error("Failed to add to cart");
+
+      const data = await res.json();
+      alert(`${product.name} added to cart!`);
+      console.log("🛒 Cart updated:", data);
+    } catch (err) {
+      console.error("❌ Add to cart error:", err);
+      alert("Something went wrong adding to cart.");
+    }
+  };
+
+  // Handle Buy Now (optional → direct checkout page)
+  const handleBuyNow = async () => {
+    await handleAddToCart();
+    window.location.href = "/cart"; // redirect to cart page
+  };
 
   if (loading) return <p>Loading product...</p>;
   if (error) return <p>Error: {error}</p>;
@@ -54,10 +90,19 @@ const ProductPage = () => {
         <div className="product-page-actions">
           <label>
             Quantity:
-            <input type="number" defaultValue={1} min={1} />
+            <input
+              type="number"
+              min={1}
+              value={quantity}
+              onChange={(e) => setQuantity(Number(e.target.value))}
+            />
           </label>
-          <button className="add-to-cart-btn">Add to Cart</button>
-          <button className="buy-now-btn">Buy Now</button>
+          <button className="add-to-cart-btn" onClick={handleAddToCart}>
+            Add to Cart
+          </button>
+          <button className="buy-now-btn" onClick={handleBuyNow}>
+            Buy Now
+          </button>
         </div>
       </div>
     </div>
