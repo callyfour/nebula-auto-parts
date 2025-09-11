@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom"; // ✅ add useNavigate
+import { Link, useNavigate } from "react-router-dom";
 import Navbar from "../Navbar/Navbar.jsx";
 import "./Login.css";
 import promoPhoto from "../assets/promo-photo.png";
@@ -7,22 +7,27 @@ import promoPhoto from "../assets/promo-photo.png";
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const navigate = useNavigate(); // ✅ hook for navigation
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
+      const res = await fetch(
+        `${import.meta.env.VITE_API_BASE}/api/auth/login`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        }
+      );
 
       const data = await res.json();
 
       if (data.success) {
+        localStorage.setItem("token", data.token); // ✅ save token
+        localStorage.setItem("user", JSON.stringify(data.user));
         alert("Login successful!");
-        navigate("/"); // ✅ redirect to homepage
+        navigate("/");
       } else {
         alert(data.message || "Invalid credentials");
       }
