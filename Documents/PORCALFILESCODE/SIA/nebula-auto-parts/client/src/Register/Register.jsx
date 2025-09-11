@@ -1,9 +1,8 @@
 import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import Navbar from "../Navbar/Navbar.jsx";
-import "./Login.css"; // reuse the same css
+import "./Login.css";
 import promoPhoto from "../assets/promo-photo.png";
-
-const API_BASE = import.meta.env.VITE_API_BASE; // ✅ Load from .env
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -12,6 +11,8 @@ export default function Register() {
     password: "",
   });
 
+  const navigate = useNavigate();
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -19,18 +20,24 @@ export default function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`${API_BASE}/api/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
+      const res = await fetch(
+        `${import.meta.env.VITE_API_BASE}/api/auth/register`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData),
+        }
+      );
 
       const data = await res.json();
 
-      if (res.ok) {
-        alert(data.message || "Registration successful");
+      if (data.success) {
+        localStorage.setItem("token", data.token); // ✅ store token
+        localStorage.setItem("user", JSON.stringify(data.user));
+        alert("Registration successful!");
+        navigate("/"); // redirect home
       } else {
-        alert(data.error || "Registration failed");
+        alert(data.message || "Registration failed");
       }
     } catch (err) {
       console.error("❌ Registration error:", err);
@@ -81,7 +88,7 @@ export default function Register() {
             </button>
 
             <p className="signup">
-              Already have an account? <a href="/login">Sign in</a>
+              Already have an account? <Link to="/login">Sign in</Link>
             </p>
           </form>
         </div>
