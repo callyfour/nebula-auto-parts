@@ -3,10 +3,13 @@ require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI;
+const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret"; // ⚠️ set in .env
 
 // --- Middleware ---
 app.use(cors());
@@ -32,7 +35,7 @@ const FeaturedItem = mongoose.model("FeaturedItem", featuredItemSchema, "feature
 
 // Products
 const productSchema = new mongoose.Schema({
-  id: { type: Number, required: true, unique: true }, // numeric ID
+  id: { type: Number, required: true, unique: true },
   name: String,
   description: String,
   price: Number,
@@ -45,13 +48,13 @@ const Product = mongoose.model("Product", productSchema, "productItems");
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
-  password: { type: String, required: true }, // ⚠️ hash later in production
+  password: { type: String, required: true }, // hashed
 });
 const User = mongoose.model("User", userSchema, "users");
 
 // Cart
 const cartItemSchema = new mongoose.Schema({
-  productId: Number, // matches Product.id
+  productId: Number,
   name: String,
   price: Number,
   image: String,
@@ -97,34 +100,26 @@ app.get("/api/products/:id", async (req, res) => {
   }
 });
 
-// REGISTER
+// --- REGISTER ---
 app.post("/api/auth/register", async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    // Check if user already exists
+    // Check if user exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Email already in use" });
+      return res.status(400).json({ success: false, message: "Email already in use" });
     }
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create user
-    const newUser = new User({
-      name,
-      email,
-      password: hashedPassword,
-    });
+    const newUser = new User({ name, email, password: hashedPassword });
     await newUser.save();
 
-    // JWT token
-    const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, {
-      expiresIn: "1d",
-    });
+    // JWT
+    const token = jwt.sign({ id: newUser._id }, JWT_SECRET, { expiresIn: "1d" });
 
     res.status(201).json({
       success: true,
@@ -138,7 +133,7 @@ app.post("/api/auth/register", async (req, res) => {
   }
 });
 
-// LOGIN
+// --- LOGIN ---
 app.post("/api/auth/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -146,23 +141,17 @@ app.post("/api/auth/login", async (req, res) => {
     // Find user
     const user = await User.findOne({ email });
     if (!user) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid email or password" });
+      return res.status(400).json({ success: false, message: "Invalid email or password" });
     }
 
     // Check password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid email or password" });
+      return res.status(400).json({ success: false, message: "Invalid email or password" });
     }
 
-    // JWT token
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "1d",
-    });
+    // JWT
+    const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: "1d" });
 
     res.json({
       success: true,
@@ -180,21 +169,16 @@ app.post("/api/auth/login", async (req, res) => {
 app.get("/api/search", async (req, res) => {
   try {
     const query = req.query.q;
-    if (!query) {
-      return res.status(400).json({ message: "Search query is required" });
-    }
+    if (!query) return res.status(400).json({ message: "Search query is required" });
 
-    const products = await Product.find({
-      name: { $regex: query, $options: "i" },
-    });
-
+    const products = await Product.find({ name: { $regex: query, $options: "i" } });
     res.json(products);
   } catch (err) {
     res.status(500).json({ error: "Server error" });
   }
 });
 
-// --- Cart Routes ---
+// --- Cart ---
 // Get cart items
 app.get("/api/cart", async (req, res) => {
   try {
