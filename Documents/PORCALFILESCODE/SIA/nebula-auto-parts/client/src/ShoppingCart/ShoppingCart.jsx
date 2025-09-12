@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom"; // ✅ Import for routing
 import "./ShoppingCart.css";
 
 const ShoppingCart = () => {
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate(); // ✅ Initialize navigation
 
   const API_BASE =
     import.meta.env.MODE === "development"
@@ -127,12 +129,17 @@ const ShoppingCart = () => {
       {/* Bottom Buttons */}
       <div className="cart-footer">
         <div className="cart-footer-left">
-          <button>Track my order</button>
-          <button>My Purchases</button>
-          <button>Shop more</button>
+          <button onClick={() => navigate("/orders")}>Track my order</button>
+          <button onClick={() => navigate("/purchases")}>My Purchases</button>
+          <button onClick={() => navigate("/shop")}>Shop more</button>
         </div>
         <div className="cart-footer-right">
-          <button className="checkout-btn">Proceed to Checkout</button>
+          <button
+            className="checkout-btn"
+            onClick={() => navigate("/checkout")}
+          >
+            Proceed to Checkout
+          </button>
         </div>
       </div>
     </div>
