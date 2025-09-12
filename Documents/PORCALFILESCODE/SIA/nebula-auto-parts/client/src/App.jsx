@@ -10,7 +10,8 @@ import Shop from "./Shop.jsx";
 import ProductPage from "./ProductPage/ProductPage.jsx";
 import Login from "./Login/Login.jsx";
 import Register from "./Register/Register.jsx";
-import ShoppingCart from "./ShoppingCart/ShoppingCart.jsx"; // ✅ import ShoppingCart
+import ShoppingCart from "./ShoppingCart/ShoppingCart.jsx";
+import Checkout from "./Checkout/Checkout.jsx"; // ✅ Added Checkout
 import ScrollToTop from "./ScrollToTop.jsx";
 import "boxicons/css/boxicons.min.css";
 
@@ -34,7 +35,9 @@ function App() {
         />
         <Route path="/shop/*" element={<Shop />} />
         <Route path="/product/:id" element={<ProductPage />} />
-        <Route path="/cart" element={<ShoppingCart />} /> {/* ✅ Cart route */}
+        <Route path="/cart" element={<ShoppingCart />} />
+        <Route path="/checkout" element={<Checkout />} />{" "}
+        {/* ✅ Checkout route */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
       </Routes>
