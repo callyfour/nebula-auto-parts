@@ -1,25 +1,53 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 
+const API_URL = import.meta.env.VITE_API_BASE?.replace(/\/$/, "");
+
 const NavRight = () => {
   const navigate = useNavigate();
-  const location = useLocation(); // 👈 detect page changes
+  const location = useLocation(); // detect page changes
   const [searchTerm, setSearchTerm] = useState("");
   const [user, setUser] = useState(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
-  // ✅ Re-check localStorage every time location changes
-  useEffect(() => {
+  // ✅ Fetch user from database
+  const fetchUser = async () => {
     const token = localStorage.getItem("token");
-    const storedUser = localStorage.getItem("user");
+    if (!token) {
+      setUser(null);
+      return;
+    }
 
-    if (token && storedUser) {
-      setUser(JSON.parse(storedUser));
-    } else {
+    try {
+      const res = await fetch(`${API_URL}/api/user/profile`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res.status === 401) {
+        localStorage.removeItem("token");
+        setUser(null);
+        navigate("/login");
+        return;
+      }
+
+      if (!res.ok) {
+        setUser(null);
+        return;
+      }
+
+      const data = await res.json();
+      setUser(data);
+    } catch (err) {
+      console.error("Error fetching user:", err);
       setUser(null);
     }
-  }, [location]); // 👈 runs whenever route changes
+  };
+
+  // Fetch user whenever location changes (e.g., after profile update)
+  useEffect(() => {
+    fetchUser();
+  }, [location]);
 
   // Close dropdown if clicked outside
   useEffect(() => {
@@ -29,9 +57,7 @@ const NavRight = () => {
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const handleSearch = (e) => {
@@ -44,7 +70,6 @@ const NavRight = () => {
 
   const handleLogout = () => {
     localStorage.removeItem("token");
-    localStorage.removeItem("user");
     setUser(null);
     navigate("/login");
   };
