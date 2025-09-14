@@ -12,11 +12,11 @@ const ProfilePage = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
+  const [profileExists, setProfileExists] = useState(true);
 
   const API_URL = import.meta.env.VITE_API_BASE?.replace(/\/$/, "");
   const navigate = useNavigate();
 
-  // Fetch user profile
   useEffect(() => {
     const fetchProfile = async () => {
       setLoading(true);
@@ -33,6 +33,12 @@ const ProfilePage = () => {
           return navigate("/login");
         }
 
+        if (res.status === 404) {
+          setProfileExists(false);
+          setMessage("Profile not found. You can create your profile.");
+          return;
+        }
+
         if (!res.ok) {
           const text = await res.text();
           console.error("❌ Profile fetch failed:", res.status, text);
@@ -41,7 +47,13 @@ const ProfilePage = () => {
         }
 
         const data = await res.json();
-        setForm(data);
+        setForm({
+          name: data.name || "",
+          email: data.email || "",
+          phone: data.phone || "",
+          gender: data.gender || "",
+          address: data.address || "",
+        });
       } catch (err) {
         console.error("❌ Error fetching profile:", err);
         setMessage("An error occurred. Please try again later.");
@@ -53,12 +65,10 @@ const ProfilePage = () => {
     fetchProfile();
   }, [API_URL, navigate]);
 
-  // Handle input change
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  // Handle save
   const handleSave = async () => {
     setMessage(null);
     setSaving(true);
@@ -88,7 +98,14 @@ const ProfilePage = () => {
       }
 
       const updatedData = await res.json();
-      setForm(updatedData);
+      setForm({
+        name: updatedData.name || "",
+        email: updatedData.email || "",
+        phone: updatedData.phone || "",
+        gender: updatedData.gender || "",
+        address: updatedData.address || "",
+      });
+      setProfileExists(true);
       setMessage("✅ Profile updated successfully!");
     } catch (err) {
       console.error("❌ Error updating profile:", err);
@@ -103,8 +120,14 @@ const ProfilePage = () => {
   return (
     <div className="profile-container">
       <h2>My Profile</h2>
-
       {message && <p className="profile-message">{message}</p>}
+
+      {!profileExists && (
+        <p className="profile-message">
+          You currently do not have a profile. Fill out the form below to create
+          one.
+        </p>
+      )}
 
       <div className="profile-card">
         <label>Name</label>
@@ -152,7 +175,7 @@ const ProfilePage = () => {
         />
 
         <button onClick={handleSave} disabled={saving}>
-          {saving ? "Saving..." : "Save"}
+          {saving ? "Saving..." : profileExists ? "Save" : "Create Profile"}
         </button>
       </div>
     </div>
