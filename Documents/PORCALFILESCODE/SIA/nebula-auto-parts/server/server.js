@@ -54,6 +54,7 @@ const User = mongoose.model("User", userSchema, "users");
 
 // Cart
 const cartItemSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }, // ✅ tied to user
   productId: Number,
   name: String,
   price: Number,
@@ -61,6 +62,25 @@ const cartItemSchema = new mongoose.Schema({
   quantity: { type: Number, default: 1 },
 });
 const CartItem = mongoose.model("CartItem", cartItemSchema, "cartItems");
+
+/* ======================
+   🔹 AUTH MIDDLEWARE
+   ====================== */
+function authMiddleware(req, res, next) {
+  const token = req.headers["authorization"]?.split(" ")[1]; // Expect "Bearer <token>"
+
+  if (!token) {
+    return res.status(401).json({ success: false, message: "No token, authorization denied" });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded; // attach user id to request
+    next();
+  } catch (err) {
+    return res.status(401).json({ success: false, message: "Invalid or expired token" });
+  }
+}
 
 /* ======================
    🔹 ROUTES
@@ -105,20 +125,15 @@ app.post("/api/auth/register", async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    // Check if user exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ success: false, message: "Email already in use" });
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create user
     const newUser = new User({ name, email, password: hashedPassword });
     await newUser.save();
 
-    // JWT
     const token = jwt.sign({ id: newUser._id }, JWT_SECRET, { expiresIn: "1d" });
 
     res.status(201).json({
@@ -138,19 +153,16 @@ app.post("/api/auth/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Find user
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(400).json({ success: false, message: "Invalid email or password" });
     }
 
-    // Check password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({ success: false, message: "Invalid email or password" });
     }
 
-    // JWT
     const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: "1d" });
 
     res.json({
@@ -178,11 +190,11 @@ app.get("/api/search", async (req, res) => {
   }
 });
 
-// --- Cart ---
-// Get cart items
-app.get("/api/cart", async (req, res) => {
+// --- Cart (Protected) ---
+// Get cart items for logged-in user
+app.get("/api/cart", authMiddleware, async (req, res) => {
   try {
-    const cart = await CartItem.find();
+    const cart = await CartItem.find({ userId: req.user.id });
     res.json(cart);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -190,18 +202,25 @@ app.get("/api/cart", async (req, res) => {
 });
 
 // Add to cart
-app.post("/api/cart", async (req, res) => {
+app.post("/api/cart", authMiddleware, async (req, res) => {
   try {
     const { productId, name, price, image, quantity } = req.body;
 
-    let existing = await CartItem.findOne({ productId });
+    let existing = await CartItem.findOne({ userId: req.user.id, productId });
     if (existing) {
       existing.quantity += quantity;
       await existing.save();
       return res.json(existing);
     }
 
-    const newItem = new CartItem({ productId, name, price, image, quantity });
+    const newItem = new CartItem({
+      userId: req.user.id,
+      productId,
+      name,
+      price,
+      image,
+      quantity,
+    });
     await newItem.save();
     res.status(201).json(newItem);
   } catch (err) {
@@ -210,10 +229,10 @@ app.post("/api/cart", async (req, res) => {
 });
 
 // Update cart item qty
-app.put("/api/cart/:id", async (req, res) => {
+app.put("/api/cart/:id", authMiddleware, async (req, res) => {
   try {
     const { type } = req.body; // "inc" or "dec"
-    const item = await CartItem.findById(req.params.id);
+    const item = await CartItem.findOne({ _id: req.params.id, userId: req.user.id });
     if (!item) return res.status(404).json({ error: "Item not found" });
 
     if (type === "inc") item.quantity++;
@@ -227,9 +246,9 @@ app.put("/api/cart/:id", async (req, res) => {
 });
 
 // Delete from cart
-app.delete("/api/cart/:id", async (req, res) => {
+app.delete("/api/cart/:id", authMiddleware, async (req, res) => {
   try {
-    await CartItem.findByIdAndDelete(req.params.id);
+    await CartItem.findOneAndDelete({ _id: req.params.id, userId: req.user.id });
     res.json({ message: "Item removed" });
   } catch (err) {
     res.status(500).json({ error: err.message });

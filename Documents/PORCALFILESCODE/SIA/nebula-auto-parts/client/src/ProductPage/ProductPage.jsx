@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom"; // ✅ added useNavigate
 import { useEffect, useState } from "react";
 import "./ProductPage.css";
 
@@ -6,6 +6,7 @@ const placeholderImg = "https://via.placeholder.com/400x300?text=Car+Part";
 
 const ProductPage = () => {
   const { id } = useParams();
+  const navigate = useNavigate(); // ✅ navigation hook
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -15,6 +16,9 @@ const ProductPage = () => {
     import.meta.env.MODE === "development"
       ? "http://localhost:5000"
       : import.meta.env.VITE_API_BASE;
+
+  // ✅ Check login
+  const isLoggedIn = Boolean(localStorage.getItem("token"));
 
   // Fetch product
   useEffect(() => {
@@ -38,6 +42,12 @@ const ProductPage = () => {
   // Handle Add to Cart
   const handleAddToCart = async () => {
     if (!product) return;
+
+    // ✅ Require login
+    if (!isLoggedIn) {
+      alert("Please log in to add items to your cart.");
+      return navigate("/login");
+    }
 
     try {
       const res = await fetch(`${API_BASE}/api/cart`, {
@@ -63,10 +73,14 @@ const ProductPage = () => {
     }
   };
 
-  // Handle Buy Now (optional → direct checkout page)
+  // Handle Buy Now (direct checkout/cart page)
   const handleBuyNow = async () => {
+    if (!isLoggedIn) {
+      alert("Please log in to continue with purchase.");
+      return navigate("/login");
+    }
     await handleAddToCart();
-    window.location.href = "/cart"; // redirect to cart page
+    navigate("/cart"); // ✅ use navigate instead of window.location.href
   };
 
   if (loading) return <p>Loading product...</p>;
