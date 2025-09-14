@@ -12,7 +12,7 @@ const ProfilePage = () => {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState(null);
 
-  const API_URL = import.meta.env.VITE_API_URL;
+  const API_URL = import.meta.env.VITE_API_BASE?.replace(/\/$/, "");
   const navigate = useNavigate();
 
   // Fetch user data
