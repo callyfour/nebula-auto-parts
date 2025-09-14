@@ -142,7 +142,7 @@ app.get("/api/products/:id", async (req, res) => {
 // --- REGISTER ---
 app.post("/api/auth/register", async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, phone, gender, address } = req.body;
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -150,7 +150,7 @@ app.post("/api/auth/register", async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = new User({ name, email, password: hashedPassword });
+    const newUser = new User({ name, email, password: hashedPassword, phone, gender, address });
     await newUser.save();
 
     const token = jwt.sign({ id: newUser._id }, JWT_SECRET, { expiresIn: "1d" });
@@ -159,13 +159,21 @@ app.post("/api/auth/register", async (req, res) => {
       success: true,
       message: "User registered successfully",
       token,
-      user: { id: newUser._id, name: newUser.name, email: newUser.email },
+      user: {
+        id: newUser._id,
+        name: newUser.name,
+        email: newUser.email,
+        phone: newUser.phone,
+        gender: newUser.gender,
+        address: newUser.address,
+      },
     });
   } catch (err) {
     console.error("❌ Register error:", err);
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
+
 
 // --- LOGIN ---
 app.post("/api/auth/login", async (req, res) => {
