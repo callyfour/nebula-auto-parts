@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom"; // ✅ Import for routing
+import { useNavigate } from "react-router-dom";
 import "./ShoppingCart.css";
 
 const ShoppingCart = () => {
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate(); // ✅ Initialize navigation
+  const navigate = useNavigate();
 
   const API_BASE =
     import.meta.env.MODE === "development"
@@ -66,6 +66,7 @@ const ShoppingCart = () => {
     }
   };
 
+  // ✅ Compute total price of cart
   const totalPrice = cart.reduce(
     (acc, item) => acc + item.price * item.quantity,
     0
@@ -108,8 +109,14 @@ const ShoppingCart = () => {
             <img src={item.image} alt={item.name} className="cart-item-image" />
             <div className="cart-item-info">
               <h3>{item.name}</h3>
-              <p>Quantity {item.quantity}</p>
-              <p className="price">₱ {item.price.toLocaleString()}</p>
+              <p>Unit Price: ₱ {item.price.toLocaleString()}</p>
+              {/* ✅ Show computed total for this item */}
+              <p>
+                Subtotal ({item.quantity} pcs):{" "}
+                <strong>
+                  ₱ {(item.price * item.quantity).toLocaleString()}
+                </strong>
+              </p>
               <div className="cart-item-controls">
                 <button onClick={() => handleDecrease(item._id)}>-</button>
                 <span>{item.quantity}</span>
@@ -126,6 +133,13 @@ const ShoppingCart = () => {
         ))
       )}
 
+      {/* ✅ Show Total at the bottom */}
+      {cart.length > 0 && (
+        <div className="cart-total">
+          <h2>Total: ₱ {totalPrice.toLocaleString()}</h2>
+        </div>
+      )}
+
       {/* Bottom Buttons */}
       <div className="cart-footer">
         <div className="cart-footer-left">
@@ -137,6 +151,7 @@ const ShoppingCart = () => {
           <button
             className="checkout-btn"
             onClick={() => navigate("/checkout")}
+            disabled={cart.length === 0} // ✅ Disable if cart is empty
           >
             Proceed to Checkout
           </button>

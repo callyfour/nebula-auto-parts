@@ -86,7 +86,7 @@
   display: flex;
   align-items: center;
   background: #111;
-  border: 2px solid #0044ff;
+  border: 2px solid #ffffff;
   border-radius: 12px;
   padding: 20px;
   margin-bottom: 20px;
@@ -173,7 +173,22 @@
   font-size: 16px;
   cursor: pointer;
   font-weight: bold;
+  transition: background 0.3s ease;
 }
+
 .checkout-btn:hover {
   background: darkred;
+}
+
+/* ✅ Disabled state */
+.checkout-btn:disabled {
+  background: #555; /* Gray background */
+  color: #999; /* Light gray text */
+  cursor: not-allowed; /* Show "not-allowed" cursor */
+  opacity: 0.6; /* Slightly faded */
+}
+
+/* Prevent hover effect when disabled */
+.checkout-btn:disabled:hover {
+  background: #555;
 }
