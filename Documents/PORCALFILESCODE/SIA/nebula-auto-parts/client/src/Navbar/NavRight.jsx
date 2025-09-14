@@ -73,7 +73,7 @@ const NavRight = () => {
             <span className="icon-wrapper">
               <i className="bx bxs-user"></i>
             </span>
-            <span className="user-name">Hi, {user.name}</span>
+            <span className="user-name">{user.name}</span>
           </button>
 
           {dropdownOpen && (

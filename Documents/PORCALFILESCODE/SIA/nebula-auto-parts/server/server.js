@@ -49,6 +49,9 @@ const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true }, // hashed
+  phone: { type: String },
+  gender: { type: String, enum: ["Male", "Female"] },
+  address: { type: String },
 });
 const User = mongoose.model("User", userSchema, "users");
 
@@ -63,7 +66,7 @@ const cartItemSchema = new mongoose.Schema({
 });
 const CartItem = mongoose.model("CartItem", cartItemSchema, "cartItems");
 
-// Orders (new)
+// Orders
 const orderSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   items: [
@@ -190,6 +193,33 @@ app.post("/api/auth/login", async (req, res) => {
   } catch (err) {
     console.error("❌ Login error:", err);
     res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// --- PROFILE (NEW) ---
+app.get("/api/user/profile", authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("-password");
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put("/api/user/profile", authMiddleware, async (req, res) => {
+  try {
+    const { name, email, phone, gender, address } = req.body;
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.id,
+      { name, email, phone, gender, address },
+      { new: true }
+    ).select("-password");
+
+    res.json(updatedUser);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
