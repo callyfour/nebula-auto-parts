@@ -1,27 +1,25 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 
 const NavRight = () => {
   const navigate = useNavigate();
+  const location = useLocation(); // 👈 detect page changes
   const [searchTerm, setSearchTerm] = useState("");
-  const [user, setUser] = useState(null); // track logged-in user
+  const [user, setUser] = useState(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
+  // ✅ Re-check localStorage every time location changes
   useEffect(() => {
-    // Check if token & user exist in localStorage
     const token = localStorage.getItem("token");
     const storedUser = localStorage.getItem("user");
 
     if (token && storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (err) {
-        console.error("Invalid user data in localStorage", err);
-        localStorage.removeItem("user");
-      }
+      setUser(JSON.parse(storedUser));
+    } else {
+      setUser(null);
     }
-  }, []);
+  }, [location]); // 👈 runs whenever route changes
 
   // Close dropdown if clicked outside
   useEffect(() => {
@@ -55,7 +53,6 @@ const NavRight = () => {
     <div className="navbar-right">
       {user ? (
         <div className="user-menu" ref={dropdownRef}>
-          {/* User button with icon + name */}
           <button
             className="svg-btn login-btn"
             type="button"
@@ -76,10 +73,9 @@ const NavRight = () => {
             <span className="icon-wrapper">
               <i className="bx bxs-user"></i>
             </span>
-            <span className="user-name">Hi, {user.username || user.name}</span>
+            <span className="user-name">Hi, {user.name}</span>
           </button>
 
-          {/* Dropdown menu */}
           {dropdownOpen && (
             <div className="dropdown">
               <button
@@ -95,7 +91,6 @@ const NavRight = () => {
           )}
         </div>
       ) : (
-        // If not logged in, show login
         <button
           className="svg-btn login-btn"
           type="button"
