@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const ProfilePage = () => {
   const [form, setForm] = useState({
@@ -9,9 +10,10 @@ const ProfilePage = () => {
     address: "",
   });
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState(null); // For success/error messages
+  const [message, setMessage] = useState(null);
 
   const API_URL = import.meta.env.VITE_API_URL;
+  const navigate = useNavigate();
 
   // Fetch user data
   useEffect(() => {
@@ -19,12 +21,25 @@ const ProfilePage = () => {
       setLoading(true);
       try {
         const token = localStorage.getItem("token");
+
+        if (!token) {
+          navigate("/login"); // Redirect if no token
+          return;
+        }
+
         const res = await fetch(`${API_URL}/api/user/profile`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
+        if (res.status === 401) {
+          // Token invalid or expired
+          localStorage.removeItem("token");
+          navigate("/login");
+          return;
+        }
+
         if (!res.ok) {
-          const text = await res.text(); // Get HTML or text if error
+          const text = await res.text();
           console.error("❌ Profile fetch failed:", res.status, text);
           setMessage("Failed to load profile. Please try again.");
           return;
@@ -41,7 +56,7 @@ const ProfilePage = () => {
     };
 
     fetchProfile();
-  }, [API_URL]);
+  }, [API_URL, navigate]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -51,6 +66,11 @@ const ProfilePage = () => {
     setMessage(null);
     try {
       const token = localStorage.getItem("token");
+      if (!token) {
+        navigate("/login");
+        return;
+      }
+
       const res = await fetch(`${API_URL}/api/user/profile`, {
         method: "PUT",
         headers: {
@@ -59,6 +79,12 @@ const ProfilePage = () => {
         },
         body: JSON.stringify(form),
       });
+
+      if (res.status === 401) {
+        localStorage.removeItem("token");
+        navigate("/login");
+        return;
+      }
 
       if (!res.ok) {
         const text = await res.text();
