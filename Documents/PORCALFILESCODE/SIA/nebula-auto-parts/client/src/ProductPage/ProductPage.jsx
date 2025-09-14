@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom"; // ✅ added useNavigate
+import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import "./ProductPage.css";
 
@@ -6,7 +6,7 @@ const placeholderImg = "https://via.placeholder.com/400x300?text=Car+Part";
 
 const ProductPage = () => {
   const { id } = useParams();
-  const navigate = useNavigate(); // ✅ navigation hook
+  const navigate = useNavigate();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -17,8 +17,9 @@ const ProductPage = () => {
       ? "http://localhost:5000"
       : import.meta.env.VITE_API_BASE;
 
-  // ✅ Check login
-  const isLoggedIn = Boolean(localStorage.getItem("token"));
+  // ✅ Get token from localStorage
+  const token = localStorage.getItem("token");
+  const isLoggedIn = Boolean(token);
 
   // Fetch product
   useEffect(() => {
@@ -43,7 +44,6 @@ const ProductPage = () => {
   const handleAddToCart = async () => {
     if (!product) return;
 
-    // ✅ Require login
     if (!isLoggedIn) {
       alert("Please log in to add items to your cart.");
       return navigate("/login");
@@ -52,17 +52,23 @@ const ProductPage = () => {
     try {
       const res = await fetch(`${API_BASE}/api/cart`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`, // ✅ send token
+        },
         body: JSON.stringify({
-          productId: product.id,
+          productId: product.id || product._id, // support both id types
           name: product.name,
           price: product.price,
           image: product.image,
-          quantity: quantity,
+          quantity,
         }),
       });
 
-      if (!res.ok) throw new Error("Failed to add to cart");
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(errText || "Failed to add to cart");
+      }
 
       const data = await res.json();
       alert(`${product.name} added to cart!`);
@@ -73,14 +79,14 @@ const ProductPage = () => {
     }
   };
 
-  // Handle Buy Now (direct checkout/cart page)
+  // Handle Buy Now
   const handleBuyNow = async () => {
     if (!isLoggedIn) {
       alert("Please log in to continue with purchase.");
       return navigate("/login");
     }
     await handleAddToCart();
-    navigate("/cart"); // ✅ use navigate instead of window.location.href
+    navigate("/cart");
   };
 
   if (loading) return <p>Loading product...</p>;
