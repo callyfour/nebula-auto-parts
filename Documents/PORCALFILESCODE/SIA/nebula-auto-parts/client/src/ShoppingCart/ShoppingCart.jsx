@@ -12,11 +12,15 @@ const ShoppingCart = () => {
       ? "http://localhost:5000"
       : import.meta.env.VITE_API_BASE;
 
+  const token = localStorage.getItem("token");
+
   // Fetch cart items
   useEffect(() => {
     const fetchCart = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/cart`);
+        const res = await fetch(`${API_BASE}/api/cart`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         if (!res.ok) throw new Error("Failed to fetch cart");
         const data = await res.json();
         setCart(data);
@@ -26,14 +30,18 @@ const ShoppingCart = () => {
         setLoading(false);
       }
     };
-    fetchCart();
-  }, [API_BASE]);
+    if (token) fetchCart();
+    else setLoading(false);
+  }, [API_BASE, token]);
 
   const handleIncrease = async (id) => {
     try {
       const res = await fetch(`${API_BASE}/api/cart/${id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ type: "inc" }),
       });
       const updated = await res.json();
@@ -47,7 +55,10 @@ const ShoppingCart = () => {
     try {
       const res = await fetch(`${API_BASE}/api/cart/${id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ type: "dec" }),
       });
       const updated = await res.json();
@@ -59,14 +70,16 @@ const ShoppingCart = () => {
 
   const handleDelete = async (id) => {
     try {
-      await fetch(`${API_BASE}/api/cart/${id}`, { method: "DELETE" });
+      await fetch(`${API_BASE}/api/cart/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
       setCart((prev) => prev.filter((item) => item._id !== id));
     } catch (err) {
       console.error("❌ Delete error:", err);
     }
   };
 
-  // ✅ Compute total price of cart
   const totalPrice = cart.reduce(
     (acc, item) => acc + item.price * item.quantity,
     0
@@ -92,15 +105,6 @@ const ShoppingCart = () => {
         </div>
       </div>
 
-      {/* Select All + Delete */}
-      <div className="cart-header">
-        <label>
-          <input type="checkbox" /> Select All
-        </label>
-        <button className="delete-btn">Delete</button>
-      </div>
-
-      {/* Cart Items */}
       {cart.length === 0 ? (
         <p className="empty-cart">Your cart is empty.</p>
       ) : (
@@ -110,7 +114,6 @@ const ShoppingCart = () => {
             <div className="cart-item-info">
               <h3>{item.name}</h3>
               <p>Unit Price: ₱ {item.price.toLocaleString()}</p>
-              {/* ✅ Show computed total for this item */}
               <p>
                 Subtotal ({item.quantity} pcs):{" "}
                 <strong>
@@ -133,14 +136,12 @@ const ShoppingCart = () => {
         ))
       )}
 
-      {/* ✅ Show Total at the bottom */}
       {cart.length > 0 && (
         <div className="cart-total">
           <h2>Total: ₱ {totalPrice.toLocaleString()}</h2>
         </div>
       )}
 
-      {/* Bottom Buttons */}
       <div className="cart-footer">
         <div className="cart-footer-left">
           <button onClick={() => navigate("/orders")}>Track my order</button>
@@ -151,7 +152,7 @@ const ShoppingCart = () => {
           <button
             className="checkout-btn"
             onClick={() => navigate("/checkout")}
-            disabled={cart.length === 0} // ✅ Disable if cart is empty
+            disabled={cart.length === 0}
           >
             Proceed to Checkout
           </button>
