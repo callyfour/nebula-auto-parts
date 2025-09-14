@@ -1,4 +1,3 @@
-// ProfilePage.jsx
 import { useEffect, useState } from "react";
 
 const ProfilePage = () => {
@@ -11,23 +10,25 @@ const ProfilePage = () => {
   });
   const [loading, setLoading] = useState(true);
 
+  const API_URL = import.meta.env.VITE_API_URL;
+
   // Fetch user data
   useEffect(() => {
     const fetchProfile = async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await fetch("http://localhost:5000/api/user/profile", {
+        const res = await fetch(`${API_URL}/api/user/profile`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
         setForm(data);
         setLoading(false);
       } catch (err) {
-        console.error(err);
+        console.error("❌ Error fetching profile:", err);
       }
     };
     fetchProfile();
-  }, []);
+  }, [API_URL]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -35,7 +36,7 @@ const ProfilePage = () => {
 
   const handleSave = async () => {
     const token = localStorage.getItem("token");
-    await fetch("http://localhost:5000/api/user/profile", {
+    await fetch(`${API_URL}/api/user/profile`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -43,7 +44,7 @@ const ProfilePage = () => {
       },
       body: JSON.stringify(form),
     });
-    alert("Profile updated!");
+    alert("✅ Profile updated!");
   };
 
   if (loading) return <p>Loading...</p>;
