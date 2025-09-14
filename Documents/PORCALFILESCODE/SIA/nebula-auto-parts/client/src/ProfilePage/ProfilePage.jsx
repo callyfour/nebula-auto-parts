@@ -9,24 +9,37 @@ const ProfilePage = () => {
     address: "",
   });
   const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState(null); // For success/error messages
 
   const API_URL = import.meta.env.VITE_API_URL;
 
   // Fetch user data
   useEffect(() => {
     const fetchProfile = async () => {
+      setLoading(true);
       try {
         const token = localStorage.getItem("token");
         const res = await fetch(`${API_URL}/api/user/profile`, {
           headers: { Authorization: `Bearer ${token}` },
         });
+
+        if (!res.ok) {
+          const text = await res.text(); // Get HTML or text if error
+          console.error("❌ Profile fetch failed:", res.status, text);
+          setMessage("Failed to load profile. Please try again.");
+          return;
+        }
+
         const data = await res.json();
         setForm(data);
-        setLoading(false);
       } catch (err) {
         console.error("❌ Error fetching profile:", err);
+        setMessage("An error occurred. Please try again.");
+      } finally {
+        setLoading(false);
       }
     };
+
     fetchProfile();
   }, [API_URL]);
 
@@ -35,16 +48,32 @@ const ProfilePage = () => {
   };
 
   const handleSave = async () => {
-    const token = localStorage.getItem("token");
-    await fetch(`${API_URL}/api/user/profile`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(form),
-    });
-    alert("✅ Profile updated!");
+    setMessage(null);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_URL}/api/user/profile`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(form),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        console.error("❌ Profile update failed:", res.status, text);
+        setMessage("Failed to update profile.");
+        return;
+      }
+
+      const updatedData = await res.json();
+      setForm(updatedData);
+      setMessage("✅ Profile updated successfully!");
+    } catch (err) {
+      console.error("❌ Error updating profile:", err);
+      setMessage("An error occurred. Please try again.");
+    }
   };
 
   if (loading) return <p>Loading...</p>;
@@ -52,6 +81,7 @@ const ProfilePage = () => {
   return (
     <div className="profile-container">
       <h2>My Profile</h2>
+      {message && <p className="profile-message">{message}</p>}
       <div className="profile-card">
         <label>Name</label>
         <input name="name" value={form.name} onChange={handleChange} />
