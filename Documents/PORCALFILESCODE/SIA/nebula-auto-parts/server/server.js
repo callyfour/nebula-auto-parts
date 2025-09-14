@@ -54,7 +54,7 @@ const User = mongoose.model("User", userSchema, "users");
 
 // Cart
 const cartItemSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }, // ✅ tied to user
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   productId: Number,
   name: String,
   price: Number,
@@ -62,6 +62,22 @@ const cartItemSchema = new mongoose.Schema({
   quantity: { type: Number, default: 1 },
 });
 const CartItem = mongoose.model("CartItem", cartItemSchema, "cartItems");
+
+// Orders (new)
+const orderSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  items: [
+    {
+      productId: Number,
+      name: String,
+      price: Number,
+      quantity: Number,
+    },
+  ],
+  totalPrice: Number,
+  createdAt: { type: Date, default: Date.now },
+});
+const Order = mongoose.model("Order", orderSchema, "orders");
 
 /* ======================
    🔹 AUTH MIDDLEWARE
@@ -191,7 +207,6 @@ app.get("/api/search", async (req, res) => {
 });
 
 // --- Cart (Protected) ---
-// Get cart items for logged-in user
 app.get("/api/cart", authMiddleware, async (req, res) => {
   try {
     const cart = await CartItem.find({ userId: req.user.id });
@@ -201,7 +216,6 @@ app.get("/api/cart", authMiddleware, async (req, res) => {
   }
 });
 
-// Add to cart
 app.post("/api/cart", authMiddleware, async (req, res) => {
   try {
     const { productId, name, price, image, quantity } = req.body;
@@ -228,7 +242,6 @@ app.post("/api/cart", authMiddleware, async (req, res) => {
   }
 });
 
-// Update cart item qty
 app.put("/api/cart/:id", authMiddleware, async (req, res) => {
   try {
     const { type } = req.body; // "inc" or "dec"
@@ -245,11 +258,40 @@ app.put("/api/cart/:id", authMiddleware, async (req, res) => {
   }
 });
 
-// Delete from cart
 app.delete("/api/cart/:id", authMiddleware, async (req, res) => {
   try {
     await CartItem.findOneAndDelete({ _id: req.params.id, userId: req.user.id });
     res.json({ message: "Item removed" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- BUY / CHECKOUT (Protected) ---
+app.post("/api/checkout", authMiddleware, async (req, res) => {
+  try {
+    const cartItems = await CartItem.find({ userId: req.user.id });
+    if (cartItems.length === 0) {
+      return res.status(400).json({ success: false, message: "Cart is empty" });
+    }
+
+    const totalPrice = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+    const newOrder = new Order({
+      userId: req.user.id,
+      items: cartItems.map((item) => ({
+        productId: item.productId,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+      })),
+      totalPrice,
+    });
+
+    await newOrder.save();
+    await CartItem.deleteMany({ userId: req.user.id }); // clear cart
+
+    res.json({ success: true, message: "Checkout successful", order: newOrder });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
