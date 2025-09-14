@@ -3,11 +3,14 @@ import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: '/',
+  base: '/', // required for Render SPA
   plugins: [react()],
+  build: {
+    outDir: 'dist', // production output folder
+  },
   server: {
     fs: {
-      allow: ['.'], // ensures Vite can serve all project files
+      allow: ['.'], // allows Vite to serve all project files in dev
     },
   },
 })
