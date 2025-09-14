@@ -12,7 +12,7 @@ import Login from "./Login/Login.jsx";
 import Register from "./Register/Register.jsx";
 import ShoppingCart from "./ShoppingCart/ShoppingCart.jsx";
 import Checkout from "./Checkout/Checkout.jsx";
-import ProfilePage from "./ProfilePage.jsx"; // ✅ import profile
+import ProfilePage from "./ProfilePage/ProfilePage.jsx"; // ✅ import profile
 import ScrollToTop from "./ScrollToTop.jsx";
 import "boxicons/css/boxicons.min.css";
 
