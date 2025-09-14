@@ -9,12 +9,17 @@ const NavRight = () => {
   const dropdownRef = useRef(null);
 
   useEffect(() => {
-    // Check if token exists in localStorage
+    // Check if token & user exist in localStorage
     const token = localStorage.getItem("token");
     const storedUser = localStorage.getItem("user");
 
     if (token && storedUser) {
-      setUser(JSON.parse(storedUser));
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (err) {
+        console.error("Invalid user data in localStorage", err);
+        localStorage.removeItem("user");
+      }
     }
   }, []);
 
@@ -48,9 +53,9 @@ const NavRight = () => {
 
   return (
     <div className="navbar-right">
-      {/* If user logged in, show name + dropdown; else show login button */}
       {user ? (
         <div className="user-menu" ref={dropdownRef}>
+          {/* User button with icon + name */}
           <button
             className="svg-btn login-btn"
             type="button"
@@ -71,9 +76,10 @@ const NavRight = () => {
             <span className="icon-wrapper">
               <i className="bx bxs-user"></i>
             </span>
-            <span className="user-name">Hi, {user.name}</span>
+            <span className="user-name">Hi, {user.username || user.name}</span>
           </button>
 
+          {/* Dropdown menu */}
           {dropdownOpen && (
             <div className="dropdown">
               <button
@@ -89,6 +95,7 @@ const NavRight = () => {
           )}
         </div>
       ) : (
+        // If not logged in, show login
         <button
           className="svg-btn login-btn"
           type="button"
