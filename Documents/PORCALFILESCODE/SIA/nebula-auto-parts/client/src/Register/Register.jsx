@@ -9,7 +9,12 @@ export default function Register() {
     name: "",
     email: "",
     password: "",
+    phone: "",
+    gender: "",
+    address: "",
   });
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState(null);
 
   const navigate = useNavigate();
 
@@ -19,6 +24,9 @@ export default function Register() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setMessage(null);
+
     try {
       const res = await fetch(
         `${import.meta.env.VITE_API_BASE}/api/auth/register`,
@@ -32,16 +40,18 @@ export default function Register() {
       const data = await res.json();
 
       if (data.success) {
-        localStorage.setItem("token", data.token); // ✅ store token
+        localStorage.setItem("token", data.token);
         localStorage.setItem("user", JSON.stringify(data.user));
-        alert("Registration successful!");
-        navigate("/"); // redirect home
+        setMessage("✅ Registration successful!");
+        setTimeout(() => navigate("/"), 1000); // Redirect after 1s
       } else {
-        alert(data.message || "Registration failed");
+        setMessage(data.message || "❌ Registration failed");
       }
     } catch (err) {
       console.error("❌ Registration error:", err);
-      alert("Something went wrong. Please try again.");
+      setMessage("❌ Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -54,6 +64,8 @@ export default function Register() {
         <div className="login-form">
           <h2>Create Account</h2>
           <p className="subtitle">Fill in your details to register</p>
+
+          {message && <p className="message">{message}</p>}
 
           <form onSubmit={handleSubmit}>
             <label>Name</label>
@@ -83,8 +95,35 @@ export default function Register() {
               required
             />
 
-            <button type="submit" className="btn">
-              Sign Up
+            <label>Phone</label>
+            <input
+              type="text"
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+            />
+
+            <label>Gender</label>
+            <select
+              name="gender"
+              value={formData.gender}
+              onChange={handleChange}
+            >
+              <option value="">Select Gender</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+            </select>
+
+            <label>Address</label>
+            <input
+              type="text"
+              name="address"
+              value={formData.address}
+              onChange={handleChange}
+            />
+
+            <button type="submit" className="btn" disabled={loading}>
+              {loading ? "Registering..." : "Sign Up"}
             </button>
 
             <p className="signup">
