@@ -140,6 +140,45 @@ app.use(adminRoutes);
    🔹 ROUTES
    ====================== */
 
+
+
+// Admin middleware
+function adminMiddleware(req, res, next) {
+  if (req.user.role !== "admin") return res.status(403).json({ message: "Admins only" });
+  next();
+}
+
+// --- GET ALL USERS ---
+app.get("/api/admin/users", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const users = await User.find().select("-password").populate("profilePicture", "-data");
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// --- DELETE USER ---
+app.delete("/api/admin/users/:id", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    await User.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// --- ADMIN STATS ---
+app.get("/api/admin/stats", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const usersCount = await User.countDocuments();
+    const productsCount = await Product.countDocuments();
+    const ordersCount = await Order.countDocuments();
+    res.json({ users: usersCount, products: productsCount, orders: ordersCount });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
 // --- Auth ---
 app.post("/api/auth/register", async (req, res) => {
   try {
