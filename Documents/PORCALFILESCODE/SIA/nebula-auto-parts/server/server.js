@@ -658,8 +658,6 @@ app.get("/api/image/gridfs/:id", async (req, res) => {
   }
 });
 
-const adminRoutes = require("../routes/adminRoutes");
-app.use(adminRoutes);
 
 /* ======================
    🔹 START SERVER
