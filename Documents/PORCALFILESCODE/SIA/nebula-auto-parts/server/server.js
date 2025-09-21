@@ -31,7 +31,7 @@ mongoose
   })
   .catch((err) => console.error("❌ MongoDB connection error:", err));
 
-// Configure multer (memory storage used for converting to base64 / GridFS streams)
+// --- Multer setup ---
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
@@ -56,11 +56,7 @@ const featuredItemSchema = new mongoose.Schema({
   description: String,
   image: String,
 });
-const FeaturedItem = mongoose.model(
-  "FeaturedItem",
-  featuredItemSchema,
-  "featuredItems"
-);
+const FeaturedItem = mongoose.model("FeaturedItem", featuredItemSchema, "featuredItems");
 
 const productSchema = new mongoose.Schema({
   id: { type: Number, required: true, unique: true },
@@ -76,11 +72,11 @@ const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  phone: { type: String },
+  phone: String,
   gender: { type: String, enum: ["Male", "Female"] },
-  address: { type: String },
+  address: String,
   role: { type: String, enum: ["user", "admin"], default: "user" },
-  profilePicture: { type: mongoose.Schema.Types.ObjectId, ref: "Image" }, // NEW
+  profilePicture: { type: mongoose.Schema.Types.ObjectId, ref: "Image" },
 });
 const User = mongoose.model("User", userSchema, "users");
 
@@ -96,9 +92,7 @@ const CartItem = mongoose.model("CartItem", cartItemSchema, "cartItems");
 
 const orderSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-  items: [
-    { productId: Number, name: String, price: Number, quantity: Number },
-  ],
+  items: [{ productId: Number, name: String, price: Number, quantity: Number }],
   totalPrice: Number,
   createdAt: { type: Date, default: Date.now },
 });
@@ -106,7 +100,7 @@ const Order = mongoose.model("Order", orderSchema, "orders");
 
 const imageSchema = new mongoose.Schema({
   filename: { type: String, required: true },
-  data: { type: String, required: true }, // Base64 string (no data: prefix)
+  data: { type: String, required: true }, // base64
   contentType: { type: String, required: true },
   uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   uploadDate: { type: Date, default: Date.now },
@@ -134,6 +128,13 @@ function adminMiddleware(req, res, next) {
     return res.status(403).json({ message: "Admins only" });
   next();
 }
+
+/* ======================
+   🔹 IMPORT ADMIN ROUTES
+   ====================== */
+const adminRoutes = require("./routes/adminRoutes"); // make sure path is correct
+app.use(adminRoutes);
+
 
 /* ======================
    🔹 ROUTES
@@ -657,7 +658,7 @@ app.get("/api/image/gridfs/:id", async (req, res) => {
   }
 });
 
-const adminRoutes = require("./routes/adminRoutes");
+const adminRoutes = require("../routes/adminRoutes");
 app.use(adminRoutes);
 
 /* ======================
