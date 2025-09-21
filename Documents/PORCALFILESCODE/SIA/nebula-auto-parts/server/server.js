@@ -270,6 +270,53 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
+// --- UPDATE USER (admin only) ---
+app.put(
+  "/api/admin/user/:id",
+  authMiddleware,
+  adminMiddleware,
+  upload.single("profilePicture"),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { name, email, phone, gender, address, role } = req.body;
+
+      const updateData = { name, email, phone, gender, address, role };
+
+      // If a profile picture file is uploaded
+      if (req.file) {
+        const img = new Image({
+          filename: req.file.originalname,
+          data: req.file.buffer.toString("base64"),
+          contentType: req.file.mimetype,
+          uploadedBy: req.user.id, // admin is uploading
+          size: req.file.size,
+          category: "profile",
+        });
+        await img.save();
+        updateData.profilePicture = img._id;
+      }
+
+      // Ensure email uniqueness
+      if (email) {
+        const exists = await User.findOne({ email, _id: { $ne: id } });
+        if (exists) return res.status(400).json({ message: "Email already in use" });
+      }
+
+      const updatedUser = await User.findByIdAndUpdate(id, updateData, {
+        new: true,
+      }).select("-password").populate("profilePicture", "-data");
+
+      if (!updatedUser) return res.status(404).json({ message: "User not found" });
+
+      res.json(updatedUser);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Failed to update user" });
+    }
+  }
+);
+
 /* ======================
    🔹 PROFILE ROUTES (with profile picture handling)
    ====================== */
