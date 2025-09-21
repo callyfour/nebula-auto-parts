@@ -1,4 +1,3 @@
-// server.js
 require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
@@ -44,7 +43,7 @@ const productSchema = new mongoose.Schema({
 });
 const Product = mongoose.model("Product", productSchema, "productItems");
 
-// Users
+// Users (updated with role)
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
@@ -52,12 +51,13 @@ const userSchema = new mongoose.Schema({
   phone: { type: String },
   gender: { type: String, enum: ["Male", "Female"] },
   address: { type: String },
+  role: { type: String, enum: ["user", "admin"], default: "user" }, // <-- added role
 });
-const User = mongoose.model("User", userSchema, "users");
+const User = mongoose.model("User ", userSchema, "users");
 
 // Cart
 const cartItemSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User ", required: true },
   productId: Number,
   name: String,
   price: Number,
@@ -68,7 +68,7 @@ const CartItem = mongoose.model("CartItem", cartItemSchema, "cartItems");
 
 // Orders
 const orderSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User ", required: true },
   items: [
     {
       productId: Number,
@@ -94,11 +94,19 @@ function authMiddleware(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded; // attach user id to request
+    req.user = decoded; // attach user id and role to request
     next();
   } catch (err) {
     return res.status(401).json({ success: false, message: "Invalid or expired token" });
   }
+}
+
+// Optional admin middleware
+function adminMiddleware(req, res, next) {
+  if (req.user.role !== "admin") {
+    return res.status(403).json({ success: false, message: "Access denied: Admins only" });
+  }
+  next();
 }
 
 /* ======================
@@ -142,30 +150,39 @@ app.get("/api/products/:id", async (req, res) => {
 // --- REGISTER ---
 app.post("/api/auth/register", async (req, res) => {
   try {
-    const { name, email, password, phone, gender, address } = req.body;
+    const { name, email, password, phone, gender, address, role } = req.body;
 
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
+    const existingUser  = await User.findOne({ email });
+    if (existingUser ) {
       return res.status(400).json({ success: false, message: "Email already in use" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = new User({ name, email, password: hashedPassword, phone, gender, address });
-    await newUser.save();
+    const newUser  = new User({
+      name,
+      email,
+      password: hashedPassword,
+      phone,
+      gender,
+      address,
+      role: role || "user", // default role is "user"
+    });
+    await newUser .save();
 
-    const token = jwt.sign({ id: newUser._id }, JWT_SECRET, { expiresIn: "1d" });
+    const token = jwt.sign({ id: newUser ._id, role: newUser .role }, JWT_SECRET, { expiresIn: "1d" });
 
     res.status(201).json({
       success: true,
-      message: "User registered successfully",
+      message: "User  registered successfully",
       token,
       user: {
-        id: newUser._id,
-        name: newUser.name,
-        email: newUser.email,
-        phone: newUser.phone,
-        gender: newUser.gender,
-        address: newUser.address,
+        id: newUser ._id,
+        name: newUser .name,
+        email: newUser .email,
+        phone: newUser .phone,
+        gender: newUser .gender,
+        address: newUser .address,
+        role: newUser .role,
       },
     });
   } catch (err) {
@@ -173,7 +190,6 @@ app.post("/api/auth/register", async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
-
 
 // --- LOGIN ---
 app.post("/api/auth/login", async (req, res) => {
@@ -190,13 +206,13 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid email or password" });
     }
 
-    const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: "1d" });
+    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: "1d" });
 
     res.json({
       success: true,
       message: "Login successful",
       token,
-      user: { id: user._id, name: user.name, email: user.email },
+      user: { id: user._id, name: user.name, email: user.email, role: user.role },
     });
   } catch (err) {
     console.error("❌ Login error:", err);
@@ -208,7 +224,7 @@ app.post("/api/auth/login", async (req, res) => {
 app.get("/api/user/profile", authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-password");
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user) return res.status(404).json({ message: "User  not found" });
     res.json(user);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -219,13 +235,13 @@ app.put("/api/user/profile", authMiddleware, async (req, res) => {
   try {
     const { name, email, phone, gender, address } = req.body;
 
-    const updatedUser = await User.findByIdAndUpdate(
+    const updatedUser  = await User.findByIdAndUpdate(
       req.user.id,
       { name, email, phone, gender, address },
       { new: true }
     ).select("-password");
 
-    res.json(updatedUser);
+    res.json(updatedUser );
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
