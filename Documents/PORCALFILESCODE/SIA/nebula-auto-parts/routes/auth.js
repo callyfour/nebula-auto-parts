@@ -7,7 +7,7 @@ const multer = require("multer");
 const { GridFsStorage } = require("multer-gridfs-storage");
 const Grid = require("gridfs-stream");
 
-const User = require("../models/user");
+const User = require("../../models/user");
 
 const router = express.Router();
 
