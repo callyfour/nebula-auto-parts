@@ -9,7 +9,6 @@ const AdminDashboard = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [message, setMessage] = useState(null);
-  const [profileFile, setProfileFile] = useState(null);
 
   const API_URL = import.meta.env.VITE_API_BASE?.replace(/\/$/, "");
   const navigate = useNavigate();
@@ -44,25 +43,40 @@ const AdminDashboard = () => {
     fetchData();
   }, [API_URL, navigate]);
 
+  // Select a user for editing
   const handleSelectUser = (user) => {
-    setSelectedUser(user);
+    setSelectedUser({ ...user, profileFile: null }); // reset file for this user only
     setEditMode(false);
     setMessage(null);
-    setProfileFile(null);
   };
 
   const handleEditUser = () => setEditMode(true);
 
+  // Handle input changes
   const handleChange = (e) => {
     setSelectedUser({ ...selectedUser, [e.target.name]: e.target.value });
   };
 
+  // Handle file upload for selected user
   const handleFileChange = (e) => {
-    if (e.target.files[0]) setProfileFile(e.target.files[0]);
+    if (e.target.files[0]) {
+      setSelectedUser((prev) => ({ ...prev, profileFile: e.target.files[0] }));
+    }
   };
 
+  // Generate profile picture URL
+  const getProfilePictureUrl = (user) => {
+    if (user.profileFile) return URL.createObjectURL(user.profileFile); // preview selected file
+    if (user.profilePicture && user.profilePicture.$oid)
+      return `${API_URL}/api/profile-picture/${user.profilePicture.$oid}`; // existing image
+    return null; // no image
+  };
+
+  // Save user updates
   const handleSaveUser = async () => {
+    if (!selectedUser) return;
     setMessage(null);
+
     try {
       const token = localStorage.getItem("token");
       const formData = new FormData();
@@ -71,7 +85,8 @@ const AdminDashboard = () => {
       formData.append("role", selectedUser.role);
       formData.append("phone", selectedUser.phone || "");
       formData.append("address", selectedUser.address || "");
-      if (profileFile) formData.append("profilePicture", profileFile);
+      if (selectedUser.profileFile)
+        formData.append("profilePicture", selectedUser.profileFile);
 
       const res = await fetch(`${API_URL}/api/admin/user/${selectedUser._id}`, {
         method: "PUT",
@@ -82,7 +97,10 @@ const AdminDashboard = () => {
       if (!res.ok) {
         const errText = await res.text();
         console.error("Update failed:", errText);
-        throw new Error("Failed to update user");
+        const errorMessage =
+          errText || "Failed to update user. Check your input.";
+        setMessage(`❌ ${errorMessage}`);
+        return;
       }
 
       const updated = await res.json();
@@ -91,15 +109,15 @@ const AdminDashboard = () => {
       );
       setSelectedUser(updated);
       setEditMode(false);
-      setProfileFile(null);
       setMessage("✅ User updated successfully!");
       setTimeout(() => setMessage(null), 3000);
     } catch (err) {
       console.error(err);
-      setMessage("❌ Could not update user.");
+      setMessage("❌ Could not update user. Please try again.");
     }
   };
 
+  // Delete user
   const handleDeleteUser = async (id) => {
     if (!window.confirm("Delete this user?")) return;
     try {
@@ -117,13 +135,6 @@ const AdminDashboard = () => {
       console.error(err);
       setMessage("❌ Failed to delete user.");
     }
-  };
-
-  const getProfilePictureUrl = (user) => {
-    if (profileFile) return URL.createObjectURL(profileFile);
-    if (user.profilePicture && user.profilePicture.$oid)
-      return `${API_URL}/api/profile-picture/${user.profilePicture.$oid}`;
-    return null;
   };
 
   if (loading)
