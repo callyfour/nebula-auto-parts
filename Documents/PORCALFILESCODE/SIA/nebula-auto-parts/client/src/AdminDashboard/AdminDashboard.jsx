@@ -67,8 +67,8 @@ const AdminDashboard = () => {
   // Generate profile picture URL
   const getProfilePictureUrl = (user) => {
     if (user.profileFile) return URL.createObjectURL(user.profileFile); // preview selected file
-    if (user.profilePicture && user.profilePicture.$oid)
-      return `${API_URL}/api/profile-picture/${user.profilePicture.$oid}`; // existing image
+    if (user.profilePicture && user.profilePicture._id)
+      return `${API_URL}/api/profile-picture/${user.profilePicture._id}`; // existing image
     return null; // no image
   };
 
@@ -80,9 +80,9 @@ const AdminDashboard = () => {
     try {
       const token = localStorage.getItem("token");
       const formData = new FormData();
-      formData.append("name", selectedUser.name);
-      formData.append("email", selectedUser.email);
-      formData.append("role", selectedUser.role);
+      formData.append("name", selectedUser.name || "");
+      formData.append("email", selectedUser.email || "");
+      formData.append("role", selectedUser.role || "user");
       formData.append("phone", selectedUser.phone || "");
       formData.append("address", selectedUser.address || "");
       if (selectedUser.profileFile)
@@ -95,11 +95,8 @@ const AdminDashboard = () => {
       });
 
       if (!res.ok) {
-        const errText = await res.text();
-        console.error("Update failed:", errText);
-        const errorMessage =
-          errText || "Failed to update user. Check your input.";
-        setMessage(`❌ ${errorMessage}`);
+        const errData = await res.json();
+        setMessage(`❌ ${errData.message || "Failed to update user."}`);
         return;
       }
 
