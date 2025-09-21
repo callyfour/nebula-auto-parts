@@ -109,31 +109,7 @@ const imageSchema = new mongoose.Schema({
 });
 const Image = mongoose.model("Image", imageSchema, "images");
 
-/* ======================
-   🔹 AUTH MIDDLEWARE
-   ====================== */
-function authMiddleware(req, res, next) {
-  const token = req.headers["authorization"]?.split(" ")[1];
-  if (!token) return res.status(401).json({ message: "No token" });
 
-  try {
-    req.user = jwt.verify(token, JWT_SECRET);
-    next();
-  } catch (err) {
-    return res.status(401).json({ message: "Invalid or expired token" });
-  }
-}
-function adminMiddleware(req, res, next) {
-  if (req.user.role !== "admin")
-    return res.status(403).json({ message: "Admins only" });
-  next();
-}
-
-/* ======================
-   🔹 IMPORT ADMIN ROUTES
-   ====================== */
-const adminRoutes = require("./routes/adminRoutes"); // make sure path is correct
-app.use(adminRoutes);
 
 
 /* ======================
