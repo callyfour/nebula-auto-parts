@@ -21,55 +21,59 @@ const ProfilePage = () => {
   const API_URL = import.meta.env.VITE_API_BASE?.replace(/\/$/, "");
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      setLoading(true);
-      try {
-        const token = localStorage.getItem("token");
-        if (!token) return navigate("/login");
+  // Move fetchProfile outside useEffect so we can call it after save
+  const fetchProfile = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return navigate("/login");
 
-        const res = await fetch(`${API_URL}/api/user/profile`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+      const res = await fetch(`${API_URL}/api/user/profile`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-        if (res.status === 401) {
-          localStorage.removeItem("token");
-          return navigate("/login");
-        }
-
-        if (res.status === 404) {
-          setProfileExists(false);
-          setMessage("Profile not found. You can create your profile.");
-          return;
-        }
-
-        if (!res.ok) {
-          const text = await res.text();
-          console.error("❌ Profile fetch failed:", res.status, text);
-          setMessage("Failed to load profile. Please refresh the page.");
-          return;
-        }
-
-        const data = await res.json();
-        console.log("Profile data received:", data); // Debug log
-
-        setForm({
-          name: data.name || "",
-          email: data.email || "",
-          phone: data.phone || "",
-          gender: data.gender || "",
-          address: data.address || "",
-          profilePicture: data.profilePicture || null, // This is the populated image object
-        });
-      } catch (err) {
-        console.error("❌ Error fetching profile:", err);
-        setMessage("An error occurred. Please try again later.");
-      } finally {
-        setLoading(false);
+      if (res.status === 401) {
+        localStorage.removeItem("token");
+        return navigate("/login");
       }
-    };
 
+      if (res.status === 404) {
+        setProfileExists(false);
+        setMessage("Profile not found. You can create your profile.");
+        return;
+      }
+
+      if (!res.ok) {
+        const text = await res.text();
+        console.error("❌ Profile fetch failed:", res.status, text);
+        setMessage("Failed to load profile. Please refresh the page.");
+        return;
+      }
+
+      const data = await res.json();
+      console.log("Profile data received:", data); // Debug log
+
+      setForm({
+        name: data.name || "",
+        email: data.email || "",
+        phone: data.phone || "",
+        gender: data.gender || "",
+        address: data.address || "",
+        profilePicture: data.profilePicture || null, // This is the populated image object
+      });
+      setProfileExists(true);
+      setMessage(null);
+    } catch (err) {
+      console.error("❌ Error fetching profile:", err);
+      setMessage("An error occurred. Please try again later.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchProfile();
+    // eslint-disable-next-line
   }, [API_URL, navigate]);
 
   const handleChange = (e) => {
@@ -129,26 +133,15 @@ const ProfilePage = () => {
         return;
       }
 
-      const updatedData = await res.json();
-      console.log("Updated profile data:", updatedData); // Debug log
-
-      setForm({
-        name: updatedData.name || "",
-        email: updatedData.email || "",
-        phone: updatedData.phone || "",
-        gender: updatedData.gender || "",
-        address: updatedData.address || "",
-        profilePicture: updatedData.profilePicture || null,
-      });
+      // Instead of using returned data, fetch profile again to ensure fresh data
+      await fetchProfile();
 
       // Clear the file input and preview
       setImageFile(null);
       setPreview(null);
-      // Reset file input
       const fileInput = document.querySelector('input[type="file"]');
       if (fileInput) fileInput.value = "";
 
-      setProfileExists(true);
       setMessage("✅ Profile updated successfully!");
 
       // Clear message after 3 seconds
