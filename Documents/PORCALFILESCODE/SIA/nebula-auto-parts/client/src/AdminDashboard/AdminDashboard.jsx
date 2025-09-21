@@ -9,6 +9,7 @@ const AdminDashboard = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [message, setMessage] = useState(null);
+  const [profileFile, setProfileFile] = useState(null); // for new profile upload
 
   const API_URL = import.meta.env.VITE_API_BASE?.replace(/\/$/, "");
   const navigate = useNavigate();
@@ -19,7 +20,7 @@ const AdminDashboard = () => {
       const token = localStorage.getItem("token");
       if (!token) return navigate("/login");
       try {
-        // Fetch users
+        // Users
         const resUsers = await fetch(`${API_URL}/api/admin/users`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -27,7 +28,7 @@ const AdminDashboard = () => {
         const usersData = await resUsers.json();
         setUsers(usersData);
 
-        // Fetch product and order count
+        // Stats
         const resStats = await fetch(`${API_URL}/api/admin/stats`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -47,35 +48,36 @@ const AdminDashboard = () => {
     setSelectedUser(user);
     setEditMode(false);
     setMessage(null);
+    setProfileFile(null);
   };
 
-  const handleEditUser = () => {
-    setEditMode(true);
-  };
+  const handleEditUser = () => setEditMode(true);
 
   const handleChange = (e) => {
     setSelectedUser({ ...selectedUser, [e.target.name]: e.target.value });
+  };
+
+  const handleFileChange = (e) => {
+    if (e.target.files[0]) setProfileFile(e.target.files[0]);
   };
 
   const handleSaveUser = async () => {
     setMessage(null);
     try {
       const token = localStorage.getItem("token");
-      const body = {
-        name: selectedUser.name,
-        email: selectedUser.email,
-        role: selectedUser.role,
-        phone: selectedUser.phone || "",
-        address: selectedUser.address || "",
-      };
+
+      let formData = new FormData();
+      formData.append("name", selectedUser.name);
+      formData.append("email", selectedUser.email);
+      formData.append("role", selectedUser.role);
+      formData.append("phone", selectedUser.phone || "");
+      formData.append("address", selectedUser.address || "");
+      if (profileFile) formData.append("profilePicture", profileFile);
 
       const res = await fetch(`${API_URL}/api/admin/user/${selectedUser._id}`, {
         method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
       });
 
       if (!res.ok) {
@@ -90,6 +92,7 @@ const AdminDashboard = () => {
       );
       setSelectedUser(updated);
       setEditMode(false);
+      setProfileFile(null);
       setMessage("✅ User updated successfully!");
       setTimeout(() => setMessage(null), 3000);
     } catch (err) {
@@ -161,11 +164,11 @@ const AdminDashboard = () => {
               <div className="user-avatar">
                 {user.profilePicture ? (
                   <img
-                    src={`${API_URL}/api/profile-picture/${user.profilePicture}`}
+                    src={`${API_URL}/api/profile-picture/${user.profilePicture.$oid}`}
                     alt={user.name}
                     onError={(e) => {
                       e.target.onerror = null;
-                      e.target.src = "/default-avatar.png"; // fallback image
+                      e.target.src = "/default-avatar.png";
                     }}
                   />
                 ) : (
@@ -183,7 +186,7 @@ const AdminDashboard = () => {
           ))}
         </div>
 
-        {/* User details */}
+        {/* Edit user card */}
         {selectedUser && (
           <div className="edit-user-card">
             <h3>Edit User</h3>
@@ -243,6 +246,16 @@ const AdminDashboard = () => {
                 type="text"
               />
             </div>
+            {editMode && (
+              <div>
+                <label>Profile Picture</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                />
+              </div>
+            )}
             <div className="btn-container">
               {editMode ? (
                 <button className="btn-save" onClick={handleSaveUser}>
