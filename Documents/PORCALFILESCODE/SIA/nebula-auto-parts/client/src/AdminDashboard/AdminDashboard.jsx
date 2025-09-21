@@ -166,10 +166,6 @@ const AdminDashboard = () => {
                   <img
                     src={`${API_URL}/api/profile-picture/${user.profilePicture.$oid}`}
                     alt={user.name}
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.src = "/default-avatar.png";
-                    }}
                   />
                 ) : (
                   <div className="user-placeholder">
