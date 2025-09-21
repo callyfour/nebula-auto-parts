@@ -7,10 +7,15 @@ import promoPhoto from "../assets/promo-photo.png";
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+    setLoading(true);
+
     try {
       const res = await fetch(
         `${import.meta.env.VITE_API_BASE}/api/auth/login`,
@@ -22,24 +27,26 @@ export default function Login() {
       );
 
       const data = await res.json();
+      setLoading(false);
 
       if (data.success) {
+        // Save token and user in localStorage
         localStorage.setItem("token", data.token);
         localStorage.setItem("user", JSON.stringify(data.user));
-        alert("Login successful!");
 
-        // Check if user is admin and redirect accordingly
+        // Redirect based on role
         if (data.user.role === "admin") {
-          navigate("/admin");
+          navigate("/admin", { replace: true });
         } else {
-          navigate("/");
+          navigate("/", { replace: true });
         }
       } else {
-        alert(data.message || "Invalid credentials");
+        setError(data.message || "Invalid credentials");
       }
     } catch (err) {
       console.error(err);
-      alert("Login failed, please try again.");
+      setLoading(false);
+      setError("Login failed, please try again.");
     }
   };
 
@@ -75,9 +82,11 @@ export default function Login() {
               <a href="#">Forgot Password</a>
             </div>
 
-            <button type="submit" className="btn">
-              Sign In
+            <button type="submit" className="btn" disabled={loading}>
+              {loading ? "Signing In..." : "Sign In"}
             </button>
+
+            {error && <p className="error-message">{error}</p>}
 
             <p className="signup">
               Don’t have an account? <Link to="/register">Sign up</Link>
