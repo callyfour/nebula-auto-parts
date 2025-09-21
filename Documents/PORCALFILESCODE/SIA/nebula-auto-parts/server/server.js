@@ -144,15 +144,12 @@ app.post("/api/auth/register", async (req, res) => {
   try {
     const { name, email, password, phone, gender, address, role } = req.body;
     
-    console.log("Registration attempt:", { email, name });
-    
     // Check if user already exists
     const existing = await User.findOne({ 
       email: { $regex: new RegExp(`^${email.trim()}$`, 'i') }
     });
     
     if (existing) {
-      console.log("Email already exists:", email);
       return res.status(400).json({ 
         success: false, 
         message: "Email already in use" 
@@ -161,7 +158,7 @@ app.post("/api/auth/register", async (req, res) => {
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
-    
+
     // Create user
     const user = new User({
       name,
@@ -174,7 +171,6 @@ app.post("/api/auth/register", async (req, res) => {
     });
     
     await user.save();
-    console.log("User created successfully:", email);
 
     // Generate token
     const token = jwt.sign(
@@ -199,7 +195,6 @@ app.post("/api/auth/register", async (req, res) => {
       }
     });
   } catch (err) {
-    console.error("❌ Registration error:", err);
     res.status(500).json({ 
       success: false, 
       message: "Server error",
@@ -208,16 +203,12 @@ app.post("/api/auth/register", async (req, res) => {
   }
 });
 
-
 app.post("/api/auth/login", async (req, res) => {
   try {
-    console.log("Login attempt:", { email: req.body.email, hasPassword: !!req.body.password });
-    
     const { email, password } = req.body;
 
     // Validate input
     if (!email || !password) {
-      console.log("Missing email or password");
       return res.status(400).json({ 
         success: false, 
         message: "Email and password are required" 
@@ -229,10 +220,7 @@ app.post("/api/auth/login", async (req, res) => {
       email: { $regex: new RegExp(`^${email.trim()}$`, 'i') }
     });
     
-    console.log("User found:", !!user);
-    
     if (!user) {
-      console.log("User not found for email:", email);
       return res.status(400).json({ 
         success: false, 
         message: "Invalid email or password" 
@@ -240,12 +228,8 @@ app.post("/api/auth/login", async (req, res) => {
     }
 
     // Check password
-    console.log("Checking password...");
     const isMatch = await bcrypt.compare(password, user.password);
-    console.log("Password match:", isMatch);
-    
     if (!isMatch) {
-      console.log("Password mismatch for user:", email);
       return res.status(400).json({ 
         success: false, 
         message: "Invalid email or password" 
@@ -259,9 +243,7 @@ app.post("/api/auth/login", async (req, res) => {
       { expiresIn: "1d" }
     );
 
-    console.log("Login successful for user:", email);
-
-    // ✅ FIXED: Return the correct format that frontend expects
+    // Return the correct format that frontend expects
     res.json({
       success: true,
       message: "Login successful",
@@ -270,11 +252,14 @@ app.post("/api/auth/login", async (req, res) => {
         id: user._id, 
         name: user.name, 
         email: user.email, 
-        role: user.role 
+        role: user.role,
+        phone: user.phone,
+        gender: user.gender,
+        address: user.address,
+        profilePicture: user.profilePicture
       },
     });
   } catch (err) {
-    console.error("❌ Login error:", err);
     res.status(500).json({ 
       success: false, 
       message: "Server error",
@@ -282,7 +267,6 @@ app.post("/api/auth/login", async (req, res) => {
     });
   }
 });
-
 
 /* ======================
    🔹 PROFILE ROUTES (with profile picture handling)
@@ -311,7 +295,6 @@ app.get("/api/user/profile", authMiddleware, async (req, res) => {
  */
 app.put("/api/user/profile", authMiddleware, upload.single("profilePicture"), async (req, res) => {
   try {
-    // Body fields could come from form-data or JSON
     const { name, email, phone, gender, address } = req.body;
 
     // Email uniqueness check
@@ -326,7 +309,7 @@ app.put("/api/user/profile", authMiddleware, upload.single("profilePicture"), as
     if (req.file) {
       const img = new Image({
         filename: req.file.originalname,
-        data: req.file.buffer.toString("base64"), // store base64 without prefix
+        data: req.file.buffer.toString("base64"),
         contentType: req.file.mimetype,
         uploadedBy: req.user.id,
         size: req.file.size,
@@ -342,39 +325,97 @@ app.put("/api/user/profile", authMiddleware, upload.single("profilePicture"), as
 
     res.json(updatedUser);
   } catch (err) {
-    console.error("❌ Profile update error:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
 /**
- * Shortcut: set profile picture by existing Image ID
- * Example flow:
- * 1) POST /api/upload/base64 -> returns imageId
- * 2) PUT /api/user/profile-picture { imageId }
+ * POST profile picture (upload and set as user's profilePicture)
+ * Accepts multipart/form-data with 'profilePicture' field.
  */
-app.put("/api/user/profile-picture", authMiddleware, async (req, res) => {
+app.post("/api/profile-picture", authMiddleware, upload.single("profilePicture"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+
+    // Create and save new image
+    const img = new Image({
+      filename: req.file.originalname,
+      data: req.file.buffer.toString("base64"),
+      contentType: req.file.mimetype,
+      uploadedBy: req.user.id,
+      size: req.file.size,
+      category: "profile",
+    });
+    await img.save();
+
+    // Update user's profilePicture reference
+    await User.findByIdAndUpdate(req.user.id, { profilePicture: img._id });
+
+    res.json({ success: true, imageId: img._id });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+/**
+ * GET profile picture by ObjectId
+ */
+app.get("/api/profile-picture/:id", async (req, res) => {
+  try {
+    const image = await Image.findById(req.params.id);
+    if (!image) return res.status(404).json({ message: "Image not found" });
+
+    res.set("Content-Type", image.contentType);
+    res.send(Buffer.from(image.data, "base64"));
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/**
+ * PUT profile picture (set profilePicture by existing imageId)
+ * Body: { imageId }
+ */
+app.put("/api/profile-picture", authMiddleware, async (req, res) => {
   try {
     const { imageId } = req.body;
     if (!imageId) return res.status(400).json({ message: "Image ID required" });
 
-    // ensure the image exists and belongs to user (or admin)
-    const img = await Image.findById(imageId);
-    if (!img) return res.status(404).json({ message: "Image not found" });
-    if (img.uploadedBy.toString() !== req.user.id && req.user.role !== "admin") {
+    // Ensure image exists and belongs to user
+    const image = await Image.findById(imageId);
+    if (!image) return res.status(404).json({ message: "Image not found" });
+    if (image.uploadedBy.toString() !== req.user.id) {
       return res.status(403).json({ message: "Forbidden" });
     }
 
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      { profilePicture: imageId },
-      { new: true }
-    ).select("-password").populate("profilePicture", "-data");
-
-    res.json({ success: true, user });
+    await User.findByIdAndUpdate(req.user.id, { profilePicture: imageId });
+    res.json({ success: true });
   } catch (err) {
-    console.error("❌ Profile-picture set error:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/**
+ * DELETE profile picture by ObjectId
+ */
+app.delete("/api/profile-picture/:id", authMiddleware, async (req, res) => {
+  try {
+    const image = await Image.findById(req.params.id);
+    if (!image) return res.status(404).json({ message: "Image not found" });
+
+    // Only allow owner or admin
+    if (image.uploadedBy.toString() !== req.user.id && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    await image.deleteOne();
+
+    // Optionally, unset profilePicture if current
+    await User.updateMany({ profilePicture: req.params.id }, { $unset: { profilePicture: "" } });
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
   }
 });
 
@@ -408,7 +449,6 @@ app.get("/api/products", async (req, res) => {
 });
 
 app.get("/api/products/:id", async (req, res) => {
-  // ensure numeric compare for product.id (stored as Number)
   const productId = Number(req.params.id);
   const product = await Product.findOne({ id: productId });
   if (!product) return res.status(404).json({ message: "Not found" });
@@ -502,11 +542,9 @@ app.post("/api/upload/base64", authMiddleware, async (req, res) => {
     const { filename, data, contentType, category } = req.body;
     if (!data || !contentType) return res.status(400).json({ message: "Invalid data" });
 
-    // If user POSTed data URI like "data:image/png;base64,AAA..." strip prefix if present
     let base = data;
     const prefixMatch = data.match(/^data:(image\/[a-zA-Z]+);base64,(.+)$/);
     if (prefixMatch) {
-      // prefixMatch[1] is content type, prefixMatch[2] is the base64
       base = prefixMatch[2];
     }
 
@@ -522,7 +560,6 @@ app.post("/api/upload/base64", authMiddleware, async (req, res) => {
 
     res.json({ success: true, imageId: image._id });
   } catch (err) {
-    console.error("❌ Base64 upload error:", err);
     res.status(500).json({ message: err.message || "Server error" });
   }
 });
@@ -543,7 +580,6 @@ app.get("/api/images/:id", authMiddleware, async (req, res) => {
     res.set("Content-Type", image.contentType);
     res.send(Buffer.from(image.data, "base64"));
   } catch (err) {
-    console.error("❌ Get base64 image error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -558,7 +594,6 @@ app.delete("/api/images/:id", authMiddleware, async (req, res) => {
     await image.deleteOne();
     res.json({ success: true });
   } catch (err) {
-    console.error("❌ Delete base64 image error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -592,13 +627,11 @@ app.post("/api/upload/gridfs", authMiddleware, upload.single("image"), async (re
     });
 
     uploadStream.on("error", (err) => {
-      console.error("GridFS upload error:", err);
       res.status(500).json({ message: "Upload failed" });
     });
 
     uploadStream.end(req.file.buffer);
   } catch (error) {
-    console.error("❌ GridFS upload error:", error);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -617,11 +650,9 @@ app.get("/api/image/gridfs/:id", async (req, res) => {
     const downloadStream = gridfsBucket.openDownloadStream(fileId);
     downloadStream.pipe(res);
     downloadStream.on("error", (err) => {
-      console.error("GridFS download error:", err);
       res.status(500).json({ message: "Download failed" });
     });
   } catch (err) {
-    console.error("❌ GridFS retrieval error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
