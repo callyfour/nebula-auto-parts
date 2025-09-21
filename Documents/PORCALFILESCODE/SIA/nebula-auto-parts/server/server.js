@@ -168,132 +168,105 @@ app.get("/api/admin/stats", authMiddleware, adminMiddleware, async (req, res) =>
     res.status(500).json({ message: err.message });
   }
 });
-// --- Auth ---
+/* ======================
+   🔹 AUTH ROUTES (Optimized)
+   ====================== */
+
+// --- REGISTER ---
 app.post("/api/auth/register", async (req, res) => {
   try {
     const { name, email, password, phone, gender, address, role } = req.body;
-    
-    // Check if user already exists
-    const existing = await User.findOne({ 
-      email: { $regex: new RegExp(`^${email.trim()}$`, 'i') }
-    });
-    
-    if (existing) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Email already in use" 
-      });
+
+    if (!email || !password || !name) {
+      return res.status(400).json({ success: false, message: "Name, email, and password are required" });
     }
 
-    // Hash password
+    // Convert email to lowercase for consistent search
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // Check if user already exists
+    const existing = await User.findOne({ email: normalizedEmail });
+    if (existing) {
+      return res.status(400).json({ success: false, message: "Email already in use" });
+    }
+
+    // Hash password (rounds can be 8 for dev/testing)
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create user
     const user = new User({
       name,
-      email: email.trim().toLowerCase(),
+      email: normalizedEmail,
       password: hashedPassword,
       phone,
       gender,
       address,
-      role: role || "user"
+      role: role || "user",
     });
-    
+
     await user.save();
 
     // Generate token
     const token = jwt.sign(
-      { id: user._id, email: user.email, role: user.role }, 
-      JWT_SECRET, 
+      { id: user._id, email: user.email, role: user.role },
+      JWT_SECRET,
       { expiresIn: "1d" }
     );
 
-    // Return success with token
-    res.status(201).json({ 
-      success: true, 
+    // Return minimal user data
+    res.status(201).json({
+      success: true,
       message: "User registered successfully",
       token,
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
-        phone: user.phone,
-        gender: user.gender,
-        address: user.address,
         role: user.role,
-      }
+      },
     });
   } catch (err) {
-    res.status(500).json({ 
-      success: false, 
-      message: "Server error",
-      error: err.message 
-    });
+    res.status(500).json({ success: false, message: "Server error", error: err.message });
   }
 });
 
+// --- LOGIN ---
 app.post("/api/auth/login", async (req, res) => {
   try {
     const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ success: false, message: "Email and password required" });
 
-    // Validate input
-    if (!email || !password) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Email and password are required" 
-      });
-    }
+    const normalizedEmail = email.trim().toLowerCase();
 
-    // Find user (case-insensitive email search)
-    const user = await User.findOne({ 
-      email: { $regex: new RegExp(`^${email.trim()}$`, 'i') }
-    });
-    
-    if (!user) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Invalid email or password" 
-      });
-    }
+    // Direct indexed lookup (fast)
+    const user = await User.findOne({ email: normalizedEmail });
+    if (!user) return res.status(400).json({ success: false, message: "Invalid email or password" });
 
-    // Check password
+    // Compare password
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Invalid email or password" 
-      });
-    }
+    if (!isMatch) return res.status(400).json({ success: false, message: "Invalid email or password" });
 
     // Generate token
     const token = jwt.sign(
-      { id: user._id, email: user.email, role: user.role }, 
-      JWT_SECRET, 
+      { id: user._id, email: user.email, role: user.role },
+      JWT_SECRET,
       { expiresIn: "1d" }
     );
 
-    // Return the correct format that frontend expects
+    // Return minimal user data
     res.json({
       success: true,
       message: "Login successful",
       token,
-      user: { 
-        id: user._id, 
-        name: user.name, 
-        email: user.email, 
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
         role: user.role,
-        phone: user.phone,
-        gender: user.gender,
-        address: user.address,
-        profilePicture: user.profilePicture
       },
     });
   } catch (err) {
-    res.status(500).json({ 
-      success: false, 
-      message: "Server error",
-      error: err.message 
-    });
+    res.status(500).json({ success: false, message: "Server error", error: err.message });
   }
 });
 
