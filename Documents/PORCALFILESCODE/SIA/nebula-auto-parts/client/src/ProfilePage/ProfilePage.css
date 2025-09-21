@@ -61,6 +61,50 @@
   border-radius: 50%;
   margin-bottom: 15px;
 }
+/* Profile avatar */
+.profile-avatar {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  overflow: hidden; /* ensures image stays inside circle */
+  background: #333;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* makes image fill the circle properly */
+}
+
+.placeholder-avatar {
+  color: #aaa;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+/* Style the file input */
+.profile-card input[type="file"] {
+  margin-top: 10px;
+  font-size: 0.9rem;
+  color: #fff;
+}
+
+.profile-card input[type="file"]::-webkit-file-upload-button {
+  background: red;
+  color: #fff;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.profile-card input[type="file"]::-webkit-file-upload-button:hover {
+  background: #b30000;
+}
 
 /* Name & role */
 .profile-name {

@@ -9,7 +9,10 @@ const ProfilePage = () => {
     phone: "",
     gender: "",
     address: "",
+    profilePicture: "", // store profile picture URL from backend
   });
+  const [imageFile, setImageFile] = useState(null); // new state for file
+  const [preview, setPreview] = useState(null); // preview before upload
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
@@ -54,6 +57,7 @@ const ProfilePage = () => {
           phone: data.phone || "",
           gender: data.gender || "",
           address: data.address || "",
+          profilePicture: data.profilePicture || "", // load picture URL
         });
       } catch (err) {
         console.error("❌ Error fetching profile:", err);
@@ -70,6 +74,14 @@ const ProfilePage = () => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    setImageFile(file);
+    if (file) {
+      setPreview(URL.createObjectURL(file));
+    }
+  };
+
   const handleSave = async () => {
     setMessage(null);
     setSaving(true);
@@ -77,13 +89,22 @@ const ProfilePage = () => {
       const token = localStorage.getItem("token");
       if (!token) return navigate("/login");
 
+      const formData = new FormData();
+      formData.append("name", form.name);
+      formData.append("email", form.email);
+      formData.append("phone", form.phone);
+      formData.append("gender", form.gender);
+      formData.append("address", form.address);
+      if (imageFile) {
+        formData.append("profilePicture", imageFile);
+      }
+
       const res = await fetch(`${API_URL}/api/user/profile`, {
         method: "PUT",
         headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${token}`, // don’t set Content-Type, browser handles it
         },
-        body: JSON.stringify(form),
+        body: formData,
       });
 
       if (res.status === 401) {
@@ -105,7 +126,10 @@ const ProfilePage = () => {
         phone: updatedData.phone || "",
         gender: updatedData.gender || "",
         address: updatedData.address || "",
+        profilePicture: updatedData.profilePicture || "",
       });
+      setImageFile(null);
+      setPreview(null);
       setProfileExists(true);
       setMessage("✅ Profile updated successfully!");
     } catch (err) {
@@ -135,7 +159,17 @@ const ProfilePage = () => {
 
       {/* Main Profile Card */}
       <div className="profile-card">
-        <div className="profile-avatar"></div>
+        <div className="profile-avatar">
+          {preview ? (
+            <img src={preview} alt="Preview" />
+          ) : form.profilePicture ? (
+            <img src={`${API_URL}/${form.profilePicture}`} alt="Profile" />
+          ) : (
+            <div className="placeholder-avatar">No Image</div>
+          )}
+        </div>
+        <input type="file" accept="image/*" onChange={handleFileChange} />
+
         <div className="profile-name">{form.name || "Your Name"}</div>
         <div className="profile-role">User Role</div>
 
@@ -147,6 +181,7 @@ const ProfilePage = () => {
           </p>
         )}
 
+        {/* Form fields */}
         <div className="form-row">
           <div style={{ flex: 1 }}>
             <label htmlFor="name">Name</label>

@@ -4,35 +4,64 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const multer = require("multer");
+const { GridFSBucket } = require("mongodb");
+const path = require("path");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI;
-const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret"; // ⚠️ set in .env
+const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret";
 
 // --- Middleware ---
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // --- MongoDB Connection ---
+let gridfsBucket;
 mongoose
   .connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log("✅ Connected to MongoDB"))
+  .then(() => {
+    console.log("✅ Connected to MongoDB");
+    gridfsBucket = new GridFSBucket(mongoose.connection.db, {
+      bucketName: "images",
+    });
+    console.log("✅ GridFS initialized");
+  })
   .catch((err) => console.error("❌ MongoDB connection error:", err));
+
+// Configure multer (memory storage used for converting to base64 / GridFS streams)
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif|webp/;
+    const extname = allowedTypes.test(
+      path.extname(file.originalname).toLowerCase()
+    );
+    const mimetype = allowedTypes.test(file.mimetype);
+
+    if (mimetype && extname) cb(null, true);
+    else cb(new Error("Only image files are allowed"));
+  },
+});
 
 /* ======================
    🔹 SCHEMAS & MODELS
    ====================== */
-
-// Featured Items
 const featuredItemSchema = new mongoose.Schema({
   title: String,
   description: String,
   image: String,
 });
-const FeaturedItem = mongoose.model("FeaturedItem", featuredItemSchema, "featuredItems");
+const FeaturedItem = mongoose.model(
+  "FeaturedItem",
+  featuredItemSchema,
+  "featuredItems"
+);
 
-// Products
 const productSchema = new mongoose.Schema({
   id: { type: Number, required: true, unique: true },
   name: String,
@@ -43,21 +72,20 @@ const productSchema = new mongoose.Schema({
 });
 const Product = mongoose.model("Product", productSchema, "productItems");
 
-// Users (updated with role)
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
-  password: { type: String, required: true }, // hashed
+  password: { type: String, required: true },
   phone: { type: String },
   gender: { type: String, enum: ["Male", "Female"] },
   address: { type: String },
-  role: { type: String, enum: ["user", "admin"], default: "user" }, // <-- added role
+  role: { type: String, enum: ["user", "admin"], default: "user" },
+  profilePicture: { type: mongoose.Schema.Types.ObjectId, ref: "Image" }, // NEW
 });
-const User = mongoose.model("User ", userSchema, "users");
+const User = mongoose.model("User", userSchema, "users");
 
-// Cart
 const cartItemSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User ", required: true },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   productId: Number,
   name: String,
   price: Number,
@@ -66,46 +94,44 @@ const cartItemSchema = new mongoose.Schema({
 });
 const CartItem = mongoose.model("CartItem", cartItemSchema, "cartItems");
 
-// Orders
 const orderSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User ", required: true },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   items: [
-    {
-      productId: Number,
-      name: String,
-      price: Number,
-      quantity: Number,
-    },
+    { productId: Number, name: String, price: Number, quantity: Number },
   ],
   totalPrice: Number,
   createdAt: { type: Date, default: Date.now },
 });
 const Order = mongoose.model("Order", orderSchema, "orders");
 
+const imageSchema = new mongoose.Schema({
+  filename: { type: String, required: true },
+  data: { type: String, required: true }, // Base64 string (no data: prefix)
+  contentType: { type: String, required: true },
+  uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  uploadDate: { type: Date, default: Date.now },
+  size: Number,
+  category: { type: String, default: "general" },
+});
+const Image = mongoose.model("Image", imageSchema, "images");
+
 /* ======================
    🔹 AUTH MIDDLEWARE
    ====================== */
 function authMiddleware(req, res, next) {
-  const token = req.headers["authorization"]?.split(" ")[1]; // Expect "Bearer <token>"
-
-  if (!token) {
-    return res.status(401).json({ success: false, message: "No token, authorization denied" });
-  }
+  const token = req.headers["authorization"]?.split(" ")[1];
+  if (!token) return res.status(401).json({ message: "No token" });
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded; // attach user id and role to request
+    req.user = jwt.verify(token, JWT_SECRET);
     next();
   } catch (err) {
-    return res.status(401).json({ success: false, message: "Invalid or expired token" });
+    return res.status(401).json({ message: "Invalid or expired token" });
   }
 }
-
-// Optional admin middleware
 function adminMiddleware(req, res, next) {
-  if (req.user.role !== "admin") {
-    return res.status(403).json({ success: false, message: "Access denied: Admins only" });
-  }
+  if (req.user.role !== "admin")
+    return res.status(403).json({ message: "Admins only" });
   next();
 }
 
@@ -113,245 +139,397 @@ function adminMiddleware(req, res, next) {
    🔹 ROUTES
    ====================== */
 
-// Root
-app.get("/", (req, res) => res.send("🚀 Backend is running!"));
-
-// --- Featured ---
-app.get("/api/featured-items", async (req, res) => {
-  try {
-    const items = await FeaturedItem.find().limit(3);
-    res.json(items);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// --- Products ---
-app.get("/api/products", async (req, res) => {
-  try {
-    const products = await Product.find();
-    res.json(products);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.get("/api/products/:id", async (req, res) => {
-  try {
-    const productId = parseInt(req.params.id, 10);
-    const product = await Product.findOne({ id: productId });
-    if (!product) return res.status(404).json({ message: "Product not found" });
-    res.json(product);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// --- REGISTER ---
+// --- Auth ---
 app.post("/api/auth/register", async (req, res) => {
   try {
-    const { name, email, password, phone, gender, address, role } = req.body;
-
-    const existingUser  = await User.findOne({ email });
-    if (existingUser ) {
-      return res.status(400).json({ success: false, message: "Email already in use" });
-    }
+    const { name, email, password, phone, gender, address } = req.body;
+    const existing = await User.findOne({ email });
+    if (existing) return res.status(400).json({ message: "Email already used" });
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser  = new User({
+    const user = new User({
       name,
       email,
       password: hashedPassword,
       phone,
       gender,
       address,
-      role: role || "user", // default role is "user"
     });
-    await newUser .save();
+    await user.save();
 
-    const token = jwt.sign({ id: newUser ._id, role: newUser .role }, JWT_SECRET, { expiresIn: "1d" });
-
-    res.status(201).json({
-      success: true,
-      message: "User  registered successfully",
-      token,
-      user: {
-        id: newUser ._id,
-        name: newUser .name,
-        email: newUser .email,
-        phone: newUser .phone,
-        gender: newUser .gender,
-        address: newUser .address,
-        role: newUser .role,
-      },
-    });
+    res.status(201).json({ success: true, message: "User registered" });
   } catch (err) {
-    console.error("❌ Register error:", err);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.status(500).json({ error: err.message });
   }
 });
 
-// --- LOGIN ---
 app.post("/api/auth/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-
     const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ success: false, message: "Invalid email or password" });
-    }
+    if (!user) return res.status(400).json({ message: "Invalid credentials" });
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ success: false, message: "Invalid email or password" });
-    }
+    if (!isMatch)
+      return res.status(400).json({ message: "Invalid credentials" });
 
-    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: "1d" });
+    const token = jwt.sign(
+      { id: user._id, email: user.email, role: user.role },
+      JWT_SECRET,
+      { expiresIn: "1d" }
+    );
 
-    res.json({
-      success: true,
-      message: "Login successful",
-      token,
-      user: { id: user._id, name: user.name, email: user.email, role: user.role },
-    });
-  } catch (err) {
-    console.error("❌ Login error:", err);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-});
-
-// --- PROFILE (NEW) ---
-app.get("/api/user/profile", authMiddleware, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id).select("-password");
-    if (!user) return res.status(404).json({ message: "User  not found" });
-    res.json(user);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.put("/api/user/profile", authMiddleware, async (req, res) => {
-  try {
-    const { name, email, phone, gender, address } = req.body;
-
-    const updatedUser  = await User.findByIdAndUpdate(
-      req.user.id,
-      { name, email, phone, gender, address },
-      { new: true }
-    ).select("-password");
-
-    res.json(updatedUser );
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// --- Search Products ---
-app.get("/api/search", async (req, res) => {
-  try {
-    const query = req.query.q;
-    if (!query) return res.status(400).json({ message: "Search query is required" });
-
-    const products = await Product.find({ name: { $regex: query, $options: "i" } });
-    res.json(products);
-  } catch (err) {
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
-// --- Cart (Protected) ---
-app.get("/api/cart", authMiddleware, async (req, res) => {
-  try {
-    const cart = await CartItem.find({ userId: req.user.id });
-    res.json(cart);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post("/api/cart", authMiddleware, async (req, res) => {
-  try {
-    const { productId, name, price, image, quantity } = req.body;
-
-    let existing = await CartItem.findOne({ userId: req.user.id, productId });
-    if (existing) {
-      existing.quantity += quantity;
-      await existing.save();
-      return res.json(existing);
-    }
-
-    const newItem = new CartItem({
-      userId: req.user.id,
-      productId,
-      name,
-      price,
-      image,
-      quantity,
-    });
-    await newItem.save();
-    res.status(201).json(newItem);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.put("/api/cart/:id", authMiddleware, async (req, res) => {
-  try {
-    const { type } = req.body; // "inc" or "dec"
-    const item = await CartItem.findOne({ _id: req.params.id, userId: req.user.id });
-    if (!item) return res.status(404).json({ error: "Item not found" });
-
-    if (type === "inc") item.quantity++;
-    if (type === "dec" && item.quantity > 1) item.quantity--;
-
-    await item.save();
-    res.json(item);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.delete("/api/cart/:id", authMiddleware, async (req, res) => {
-  try {
-    await CartItem.findOneAndDelete({ _id: req.params.id, userId: req.user.id });
-    res.json({ message: "Item removed" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// --- BUY / CHECKOUT (Protected) ---
-app.post("/api/checkout", authMiddleware, async (req, res) => {
-  try {
-    const cartItems = await CartItem.find({ userId: req.user.id });
-    if (cartItems.length === 0) {
-      return res.status(400).json({ success: false, message: "Cart is empty" });
-    }
-
-    const totalPrice = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-
-    const newOrder = new Order({
-      userId: req.user.id,
-      items: cartItems.map((item) => ({
-        productId: item.productId,
-        name: item.name,
-        price: item.price,
-        quantity: item.quantity,
-      })),
-      totalPrice,
-    });
-
-    await newOrder.save();
-    await CartItem.deleteMany({ userId: req.user.id }); // clear cart
-
-    res.json({ success: true, message: "Checkout successful", order: newOrder });
+    res.json({ token, role: user.role });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 /* ======================
+   🔹 PROFILE ROUTES (with profile picture handling)
+   ====================== */
+
+/**
+ * GET profile
+ * returns user data and populates profilePicture (metadata only)
+ */
+app.get("/api/user/profile", authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id)
+      .select("-password")
+      .populate("profilePicture", "-data"); // include image metadata but not large base64
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * PUT profile
+ * Accepts multipart/form-data with optional 'profilePicture' file OR JSON body.
+ * If a file is included, it will be saved into Image collection (base64) and linked.
+ */
+app.put("/api/user/profile", authMiddleware, upload.single("profilePicture"), async (req, res) => {
+  try {
+    // Body fields could come from form-data or JSON
+    const { name, email, phone, gender, address } = req.body;
+
+    // Email uniqueness check
+    if (email) {
+      const exists = await User.findOne({ email, _id: { $ne: req.user.id } });
+      if (exists) return res.status(400).json({ message: "Email already in use" });
+    }
+
+    const updateData = { name, email, phone, gender, address };
+
+    // If a file was uploaded, create an Image document and link it
+    if (req.file) {
+      const img = new Image({
+        filename: req.file.originalname,
+        data: req.file.buffer.toString("base64"), // store base64 without prefix
+        contentType: req.file.mimetype,
+        uploadedBy: req.user.id,
+        size: req.file.size,
+        category: req.body.category || "profile",
+      });
+      await img.save();
+      updateData.profilePicture = img._id;
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(req.user.id, updateData, { new: true })
+      .select("-password")
+      .populate("profilePicture", "-data");
+
+    res.json(updatedUser);
+  } catch (err) {
+    console.error("❌ Profile update error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * Shortcut: set profile picture by existing Image ID
+ * Example flow:
+ * 1) POST /api/upload/base64 -> returns imageId
+ * 2) PUT /api/user/profile-picture { imageId }
+ */
+app.put("/api/user/profile-picture", authMiddleware, async (req, res) => {
+  try {
+    const { imageId } = req.body;
+    if (!imageId) return res.status(400).json({ message: "Image ID required" });
+
+    // ensure the image exists and belongs to user (or admin)
+    const img = await Image.findById(imageId);
+    if (!img) return res.status(404).json({ message: "Image not found" });
+    if (img.uploadedBy.toString() !== req.user.id && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { profilePicture: imageId },
+      { new: true }
+    ).select("-password").populate("profilePicture", "-data");
+
+    res.json({ success: true, user });
+  } catch (err) {
+    console.error("❌ Profile-picture set error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ======================
+   🔹 PASSWORD ROUTE
+   ====================== */
+app.put("/api/user/change-password", authMiddleware, async (req, res) => {
+  try {
+    const { oldPassword, newPassword } = req.body;
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const isMatch = await bcrypt.compare(oldPassword, user.password);
+    if (!isMatch) return res.status(400).json({ message: "Old password incorrect" });
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    await user.save();
+
+    res.json({ success: true, message: "Password updated" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ======================
+   🔹 PRODUCTS, FEATURED, SEARCH
+   ====================== */
+app.get("/api/products", async (req, res) => {
+  const products = await Product.find();
+  res.json(products);
+});
+
+app.get("/api/products/:id", async (req, res) => {
+  // ensure numeric compare for product.id (stored as Number)
+  const productId = Number(req.params.id);
+  const product = await Product.findOne({ id: productId });
+  if (!product) return res.status(404).json({ message: "Not found" });
+  res.json(product);
+});
+
+app.get("/api/search", async (req, res) => {
+  const { q } = req.query;
+  const products = await Product.find({
+    $or: [
+      { name: new RegExp(q, "i") },
+      { brand: new RegExp(q, "i") },
+      { description: new RegExp(q, "i") },
+    ],
+  });
+  res.json(products);
+});
+
+app.get("/api/featured-items", async (req, res) => {
+  const items = await FeaturedItem.find();
+  res.json(items);
+});
+
+/* ======================
+   🔹 CART
+   ====================== */
+app.get("/api/cart", authMiddleware, async (req, res) => {
+  const items = await CartItem.find({ userId: req.user.id });
+  res.json(items);
+});
+
+app.post("/api/cart", authMiddleware, async (req, res) => {
+  const { productId, name, price, image, quantity } = req.body;
+  let item = await CartItem.findOne({ userId: req.user.id, productId });
+  const qty = quantity && Number(quantity) > 0 ? Number(quantity) : 1;
+  if (item) {
+    item.quantity = (item.quantity || 0) + qty;
+  } else {
+    item = new CartItem({
+      userId: req.user.id,
+      productId,
+      name,
+      price,
+      image,
+      quantity: qty,
+    });
+  }
+  await item.save();
+  res.json(item);
+});
+
+app.delete("/api/cart/:id", authMiddleware, async (req, res) => {
+  await CartItem.findByIdAndDelete(req.params.id);
+  res.json({ success: true });
+});
+
+/* ======================
+   🔹 ORDERS
+   ====================== */
+app.post("/api/orders/checkout", authMiddleware, async (req, res) => {
+  const cartItems = await CartItem.find({ userId: req.user.id });
+  if (!cartItems.length) return res.status(400).json({ message: "Cart empty" });
+
+  const totalPrice = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const order = new Order({
+    userId: req.user.id,
+    items: cartItems.map((i) => ({
+      productId: i.productId,
+      name: i.name,
+      price: i.price,
+      quantity: i.quantity,
+    })),
+    totalPrice,
+  });
+  await order.save();
+  await CartItem.deleteMany({ userId: req.user.id });
+
+  res.json({ success: true, order });
+});
+
+app.get("/api/orders", authMiddleware, async (req, res) => {
+  const orders = await Order.find({ userId: req.user.id });
+  res.json(orders);
+});
+
+/* ======================
+   🔹 BASE64 IMAGE ROUTES (existing)
+   ====================== */
+app.post("/api/upload/base64", authMiddleware, async (req, res) => {
+  try {
+    const { filename, data, contentType, category } = req.body;
+    if (!data || !contentType) return res.status(400).json({ message: "Invalid data" });
+
+    // If user POSTed data URI like "data:image/png;base64,AAA..." strip prefix if present
+    let base = data;
+    const prefixMatch = data.match(/^data:(image\/[a-zA-Z]+);base64,(.+)$/);
+    if (prefixMatch) {
+      // prefixMatch[1] is content type, prefixMatch[2] is the base64
+      base = prefixMatch[2];
+    }
+
+    const image = new Image({
+      filename: filename || `upload-${Date.now()}`,
+      data: base,
+      contentType,
+      uploadedBy: req.user.id,
+      size: Buffer.from(base, "base64").length,
+      category: category || "general",
+    });
+    await image.save();
+
+    res.json({ success: true, imageId: image._id });
+  } catch (err) {
+    console.error("❌ Base64 upload error:", err);
+    res.status(500).json({ message: err.message || "Server error" });
+  }
+});
+
+app.get("/api/images", authMiddleware, async (req, res) => {
+  const filter = req.user.role === "admin" ? {} : { uploadedBy: req.user.id };
+  const images = await Image.find(filter).select("-data");
+  res.json(images);
+});
+
+app.get("/api/images/:id", authMiddleware, async (req, res) => {
+  try {
+    const image = await Image.findById(req.params.id);
+    if (!image) return res.status(404).json({ message: "Not found" });
+    if (req.user.role !== "admin" && image.uploadedBy.toString() !== req.user.id)
+      return res.status(403).json({ message: "Forbidden" });
+
+    res.set("Content-Type", image.contentType);
+    res.send(Buffer.from(image.data, "base64"));
+  } catch (err) {
+    console.error("❌ Get base64 image error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.delete("/api/images/:id", authMiddleware, async (req, res) => {
+  try {
+    const image = await Image.findById(req.params.id);
+    if (!image) return res.status(404).json({ message: "Not found" });
+    if (req.user.role !== "admin" && image.uploadedBy.toString() !== req.user.id)
+      return res.status(403).json({ message: "Forbidden" });
+
+    await image.deleteOne();
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Delete base64 image error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/* ======================
+   🔹 GRIDFS IMAGE ROUTES (existing, guarded)
+   ====================== */
+app.post("/api/upload/gridfs", authMiddleware, upload.single("image"), async (req, res) => {
+  try {
+    if (!gridfsBucket) {
+      return res.status(500).json({ message: "GridFS not initialized yet" });
+    }
+    if (!req.file) return res.status(400).json({ message: "No image file provided" });
+
+    const uploadStream = gridfsBucket.openUploadStream(req.file.originalname, {
+      metadata: {
+        contentType: req.file.mimetype,
+        uploadedBy: req.user.id,
+        uploadDate: new Date(),
+        category: req.body.category || "general",
+      },
+    });
+
+    uploadStream.on("finish", () => {
+      res.json({
+        success: true,
+        message: "Image uploaded to GridFS",
+        fileId: uploadStream.id,
+        url: `/api/image/gridfs/${uploadStream.id}`,
+      });
+    });
+
+    uploadStream.on("error", (err) => {
+      console.error("GridFS upload error:", err);
+      res.status(500).json({ message: "Upload failed" });
+    });
+
+    uploadStream.end(req.file.buffer);
+  } catch (error) {
+    console.error("❌ GridFS upload error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.get("/api/image/gridfs/:id", async (req, res) => {
+  try {
+    if (!gridfsBucket) {
+      return res.status(500).json({ message: "GridFS not initialized yet" });
+    }
+
+    const fileId = new mongoose.Types.ObjectId(req.params.id);
+    const fileInfo = await gridfsBucket.find({ _id: fileId }).toArray();
+    if (!fileInfo.length) return res.status(404).json({ message: "Not found" });
+
+    res.set("Content-Type", fileInfo[0].metadata.contentType || "application/octet-stream");
+    const downloadStream = gridfsBucket.openDownloadStream(fileId);
+    downloadStream.pipe(res);
+    downloadStream.on("error", (err) => {
+      console.error("GridFS download error:", err);
+      res.status(500).json({ message: "Download failed" });
+    });
+  } catch (err) {
+    console.error("❌ GridFS retrieval error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/* ======================
    🔹 START SERVER
    ====================== */
-app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
+app.listen(PORT, () =>
+  console.log(`🚀 Server running on http://localhost:${PORT}`)
+);
