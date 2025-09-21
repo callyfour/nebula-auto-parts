@@ -37,7 +37,10 @@ const authMiddleware = (req, res, next) => {
   if (!token) return res.status(401).json({ message: "No token provided" });
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback_secret");
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET || "fallback_secret"
+    );
     req.user = decoded; // Attach user id to request
     next();
   } catch (err) {
@@ -46,13 +49,15 @@ const authMiddleware = (req, res, next) => {
 };
 
 // ===== REGISTER =====
-router.post("/register", async (req, res) => {
+router.post("/register", upload.single("profilePicture"), async (req, res) => {
   try {
     const { name, email, password, phone, gender, address } = req.body;
 
     const existing = await User.findOne({ email });
     if (existing) {
-      return res.status(400).json({ success: false, message: "Email already registered" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Email already registered" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -64,11 +69,16 @@ router.post("/register", async (req, res) => {
       phone,
       gender,
       address,
+      profilePicture: req.file ? req.file.filename : null,
     });
 
     await newUser.save();
 
-    const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET || "fallback_secret", { expiresIn: "7d" });
+    const token = jwt.sign(
+      { id: newUser._id },
+      process.env.JWT_SECRET || "fallback_secret",
+      { expiresIn: "7d" }
+    );
 
     res.status(201).json({
       success: true,
@@ -81,7 +91,7 @@ router.post("/register", async (req, res) => {
         phone: newUser.phone,
         gender: newUser.gender,
         address: newUser.address,
-        profilePicture: newUser.profilePicture || null,
+        profilePicture: newUser.profilePicture,
       },
     });
   } catch (err) {
@@ -96,12 +106,22 @@ router.post("/login", async (req, res) => {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
-    if (!user) return res.status(401).json({ success: false, message: "Invalid email or password" });
+    if (!user)
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid email or password" });
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(401).json({ success: false, message: "Invalid email or password" });
+    if (!isMatch)
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid email or password" });
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || "fallback_secret", { expiresIn: "7d" });
+    const token = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET || "fallback_secret",
+      { expiresIn: "7d" }
+    );
 
     res.json({
       success: true,
@@ -134,45 +154,34 @@ router.get("/profile", authMiddleware, async (req, res) => {
   }
 });
 
-// ===== UPDATE PROFILE =====
-router.put("/profile", authMiddleware, async (req, res) => {
-  try {
-    const { name, email, phone, gender, address } = req.body;
+// ===== UPDATE PROFILE (with optional picture upload) =====
+router.put(
+  "/profile",
+  authMiddleware,
+  upload.single("profilePicture"),
+  async (req, res) => {
+    try {
+      const { name, email, phone, gender, address } = req.body;
 
-    const updatedUser = await User.findByIdAndUpdate(
-      req.user.id,
-      { name, email, phone, gender, address },
-      { new: true }
-    ).select("-password");
+      const updateData = { name, email, phone, gender, address };
 
-    res.json(updatedUser);
-  } catch (err) {
-    console.error("❌ Profile update error:", err);
-    res.status(500).json({ message: "Server error" });
+      if (req.file) {
+        updateData.profilePicture = req.file.filename;
+      }
+
+      const updatedUser = await User.findByIdAndUpdate(
+        req.user.id,
+        updateData,
+        { new: true }
+      ).select("-password");
+
+      res.json(updatedUser);
+    } catch (err) {
+      console.error("❌ Profile update error:", err);
+      res.status(500).json({ message: "Server error" });
+    }
   }
-});
-
-// ===== UPLOAD PROFILE PICTURE =====
-router.post("/profile/picture", authMiddleware, upload.single("profilePicture"), async (req, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
-
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      { profilePicture: req.file.filename },
-      { new: true }
-    ).select("-password");
-
-    res.json({
-      success: true,
-      message: "Profile picture updated",
-      user,
-    });
-  } catch (err) {
-    console.error("❌ Upload error:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
+);
 
 // ===== GET PROFILE PICTURE =====
 router.get("/profile/picture/:filename", async (req, res) => {
