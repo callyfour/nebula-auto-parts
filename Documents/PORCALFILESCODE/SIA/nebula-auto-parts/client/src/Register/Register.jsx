@@ -115,11 +115,76 @@ export default function Register() {
             </select>
 
             <label>Address</label>
-            <input
-              type="text"
+            <textarea
               name="address"
               value={formData.address}
               onChange={handleChange}
+              rows={3}
+              placeholder="Enter your address"
+            />
+
+            <button type="submit" className="btn" disabled={loading}>
+              {loading ? "Registering..." : "Sign Up"}
+            </button>
+
+            <p className="signup">
+              Already have an account? <Link to="/login">Sign in</Link>
+            </p>
+          </form>
+          <form onSubmit={handleSubmit}>
+            <label>Name</label>
+            <input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              required
+            />
+
+            <label>Email</label>
+            <input
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              required
+            />
+
+            <label>Password</label>
+            <input
+              type="password"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              required
+            />
+
+            <label>Phone</label>
+            <input
+              type="text"
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+            />
+
+            <label>Gender</label>
+            <select
+              name="gender"
+              value={formData.gender}
+              onChange={handleChange}
+            >
+              <option value="">Select Gender</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+            </select>
+
+            <label>Address</label>
+            <textarea
+              name="address"
+              value={formData.address}
+              onChange={handleChange}
+              rows={3}
+              placeholder="Enter your address"
             />
 
             <button type="submit" className="btn" disabled={loading}>
