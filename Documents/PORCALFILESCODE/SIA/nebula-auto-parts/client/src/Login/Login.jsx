@@ -24,10 +24,16 @@ export default function Login() {
       const data = await res.json();
 
       if (data.success) {
-        localStorage.setItem("token", data.token); // ✅ save token
+        localStorage.setItem("token", data.token);
         localStorage.setItem("user", JSON.stringify(data.user));
         alert("Login successful!");
-        navigate("/");
+
+        // Check if user is admin and redirect accordingly
+        if (data.user.role === "admin") {
+          navigate("/admin");
+        } else {
+          navigate("/");
+        }
       } else {
         alert(data.message || "Invalid credentials");
       }

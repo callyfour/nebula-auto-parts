@@ -12,7 +12,8 @@ import Login from "./Login/Login.jsx";
 import Register from "./Register/Register.jsx";
 import ShoppingCart from "./ShoppingCart/ShoppingCart.jsx";
 import Checkout from "./Checkout/Checkout.jsx";
-import ProfilePage from "./ProfilePage/ProfilePage.jsx"; // ✅ import profile
+import ProfilePage from "./ProfilePage/ProfilePage.jsx";
+import AdminDashboard from "./AdminDashboard/AdminDashboard.jsx"; // ✅ import admin dashboard
 import ScrollToTop from "./ScrollToTop.jsx";
 import "boxicons/css/boxicons.min.css";
 
@@ -40,8 +41,9 @@ function App() {
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/profile" element={<ProfilePage />} />{" "}
-        {/* ✅ profile route */}
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/admin" element={<AdminDashboard />} />{" "}
+        {/* ✅ admin route */}
       </Routes>
       <Footer />
     </>

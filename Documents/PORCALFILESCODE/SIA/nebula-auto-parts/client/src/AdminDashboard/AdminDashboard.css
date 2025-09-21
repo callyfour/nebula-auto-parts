@@ -1,0 +1,255 @@
+/* Container for the whole profile section */
+.profile-container {
+  max-width: 1200px;
+  margin: 8rem auto;
+  padding: 60px 40px 40px 40px; /* top padding accounts for navbar */
+  background: #111;
+  color: #fff;
+  border-radius: 12px;
+  display: flex;
+  gap: 40px;
+  font-family: "Arial", sans-serif;
+}
+
+/* Sidebar */
+.profile-sidebar {
+  flex: 0 0 250px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.profile-sidebar h3 {
+  font-size: 1.4rem;
+  margin-bottom: 1.5rem;
+}
+
+.profile-sidebar button {
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  text-align: left;
+  cursor: pointer;
+  background: #1c1c1c;
+  color: #fff;
+  transition: background 0.3s;
+  font-size: 1rem;
+}
+
+.profile-sidebar button.active,
+.profile-sidebar button:hover {
+  background: #6e1e1e;
+}
+
+/* Profile card */
+.profile-card {
+  flex: 1;
+  background: #1a1a1a;
+  border-radius: 12px;
+  padding: 35px;
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  position: relative;
+}
+
+/* Profile avatar */
+.profile-avatar {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  overflow: hidden; /* ensures image stays inside circle */
+  background: #333;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* makes image fill the circle properly */
+  border-radius: 50%;
+  display: block;
+  background: #333;
+}
+
+/* Only show placeholder if no image is loaded or image fails */
+.placeholder-avatar {
+  color: #aaa;
+  font-size: 2.5rem;
+  font-weight: bold;
+  text-align: center;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #444;
+  border-radius: 50%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+}
+
+/* Hide placeholder when an image is loaded */
+.profile-avatar img:not([src=""]) + .placeholder-avatar {
+  display: none;
+}
+
+/* Style the file input */
+.profile-card input[type="file"] {
+  margin-top: 10px;
+  font-size: 0.9rem;
+  color: #fff;
+  background: transparent;
+  border: none;
+  width: 100%;
+}
+
+.profile-card input[type="file"]::-webkit-file-upload-button {
+  background: red;
+  color: #fff;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.profile-card input[type="file"]::-webkit-file-upload-button:hover {
+  background: #b30000;
+}
+
+/* Name & role */
+.profile-name {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.profile-role {
+  font-size: 1.1rem;
+  color: #aaa;
+  margin-bottom: 20px;
+}
+
+/* Form fields */
+.profile-card .form-row {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap; /* wrap on smaller screens */
+}
+
+.profile-card label {
+  font-weight: bold;
+  display: block;
+  margin-bottom: 7px;
+  font-size: 1rem;
+}
+
+.profile-card input[type="text"],
+.profile-card input[type="email"],
+.profile-card input[type="tel"] {
+  width: 100%;
+  padding: 14px;
+  border-radius: 10px;
+  border: none;
+  background: #333;
+  color: #fff;
+  font-size: 1rem;
+}
+
+.profile-card .gender-options {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.profile-card .gender-options input[type="radio"] {
+  accent-color: red;
+  width: 18px;
+  height: 18px;
+}
+
+/* Buttons */
+.profile-card .btn-container {
+  display: flex;
+  gap: 15px;
+  justify-content: flex-end;
+  flex-wrap: wrap; /* wrap buttons if needed */
+}
+
+.profile-card .btn-save,
+.profile-card .btn-restore {
+  padding: 14px 28px;
+  border-radius: 10px;
+  font-size: 1rem;
+  border: none;
+  cursor: pointer;
+}
+
+.profile-card .btn-save {
+  background: red;
+  color: #fff;
+}
+
+.profile-card .btn-restore {
+  background: #555;
+  color: #fff;
+}
+
+/* --- Responsive Adjustments --- */
+@media (max-width: 1200px) {
+  .profile-container {
+    padding: 50px 30px 30px 30px;
+    gap: 30px;
+  }
+  .profile-sidebar {
+    flex: 0 0 220px;
+  }
+}
+
+@media (max-width: 992px) {
+  .profile-container {
+    flex-direction: column; /* stack sidebar + card */
+    padding: 40px 20px 20px 20px;
+    gap: 30px;
+  }
+  .profile-sidebar {
+    flex: 1;
+    flex-direction: row;
+    justify-content: space-around;
+  }
+  .profile-card {
+    padding: 30px;
+  }
+}
+
+@media (max-width: 768px) {
+  .profile-container {
+    padding: 30px 15px 15px 15px;
+    gap: 20px;
+  }
+  .profile-sidebar {
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+  }
+  .profile-card {
+    padding: 25px;
+    gap: 15px;
+  }
+  .profile-card .form-row {
+    flex-direction: column;
+    gap: 15px;
+  }
+  .profile-card .gender-options {
+    gap: 10px;
+  }
+  .profile-card .btn-container {
+    justify-content: center;
+  }
+}
