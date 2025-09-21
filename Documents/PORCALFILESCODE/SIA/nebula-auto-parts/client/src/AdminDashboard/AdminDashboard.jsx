@@ -120,6 +120,17 @@ const AdminDashboard = () => {
     }
   };
 
+  // Profile picture URL logic
+  const getProfilePictureUrl = () => {
+    if (preview) {
+      return preview;
+    }
+    if (form.profilePicture && form.profilePicture._id) {
+      return `${API_URL}/api/profile-picture/${form.profilePicture._id}`;
+    }
+    return "";
+  };
+
   if (loading)
     return (
       <div className="admin-container">
@@ -164,8 +175,16 @@ const AdminDashboard = () => {
               <div className="user-avatar">
                 {user.profilePicture ? (
                   <img
-                    src={`${API_URL}/api/profile-picture/${user.profilePicture.$oid}`}
-                    alt={user.name}
+                    src={getProfilePictureUrl()}
+                    alt="Profile"
+                    style={{
+                      display: getProfilePictureUrl() ? "block" : "none",
+                    }}
+                    onError={(e) => {
+                      e.target.src = "";
+                      e.target.style.display = "none";
+                      // let the placeholder show
+                    }}
                   />
                 ) : (
                   <div className="user-placeholder">
