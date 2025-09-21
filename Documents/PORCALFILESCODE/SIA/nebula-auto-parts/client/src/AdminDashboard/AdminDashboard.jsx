@@ -34,6 +34,7 @@ const AdminDashboard = () => {
         const statsData = await resStats.json();
         setStats(statsData);
       } catch (err) {
+        console.error(err);
         setMessage("Failed to load dashboard data.");
       } finally {
         setLoading(false);
@@ -60,15 +61,29 @@ const AdminDashboard = () => {
     setMessage(null);
     try {
       const token = localStorage.getItem("token");
+      const body = {
+        name: selectedUser.name,
+        email: selectedUser.email,
+        role: selectedUser.role,
+        phone: selectedUser.phone || "",
+        address: selectedUser.address || "",
+      };
+
       const res = await fetch(`${API_URL}/api/admin/user/${selectedUser._id}`, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(selectedUser),
+        body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error("Failed to update user");
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error("Update failed:", errText);
+        throw new Error("Failed to update user");
+      }
+
       const updated = await res.json();
       setUsers((prev) =>
         prev.map((u) => (u._id === updated._id ? updated : u))
@@ -78,6 +93,7 @@ const AdminDashboard = () => {
       setMessage("✅ User updated successfully!");
       setTimeout(() => setMessage(null), 3000);
     } catch (err) {
+      console.error(err);
       setMessage("❌ Could not update user.");
     }
   };
@@ -96,6 +112,7 @@ const AdminDashboard = () => {
       setMessage("✅ User deleted.");
       setTimeout(() => setMessage(null), 3000);
     } catch (err) {
+      console.error(err);
       setMessage("❌ Failed to delete user.");
     }
   };
@@ -146,6 +163,10 @@ const AdminDashboard = () => {
                   <img
                     src={`${API_URL}/api/profile-picture/${user.profilePicture}`}
                     alt={user.name}
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = "/default-avatar.png"; // fallback image
+                    }}
                   />
                 ) : (
                   <div className="user-placeholder">
