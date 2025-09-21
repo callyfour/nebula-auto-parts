@@ -1,21 +1,39 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "./Checkout.css";
 
 const Checkout = () => {
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
   const [voucher, setVoucher] = useState("");
+  const navigate = useNavigate();
 
   const API_BASE =
     import.meta.env.MODE === "development"
       ? "http://localhost:5000"
       : import.meta.env.VITE_API_BASE;
 
+  // Helper for authenticated requests
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      navigate("/login");
+      return {};
+    }
+    return { Authorization: `Bearer ${token}` };
+  };
+
   // Fetch cart items from MongoDB
   useEffect(() => {
     const fetchCart = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/cart`);
+        const res = await fetch(`${API_BASE}/api/cart`, {
+          headers: getAuthHeaders(),
+        });
+        if (res.status === 401) {
+          localStorage.removeItem("token");
+          return navigate("/login");
+        }
         if (!res.ok) throw new Error("Failed to fetch cart");
         const data = await res.json();
         setCart(data);
@@ -26,14 +44,21 @@ const Checkout = () => {
       }
     };
     fetchCart();
-  }, [API_BASE]);
+  }, [API_BASE, navigate]);
 
   const handleIncrease = async (id) => {
     const res = await fetch(`${API_BASE}/api/cart/${id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({ type: "inc" }),
     });
+    if (res.status === 401) {
+      localStorage.removeItem("token");
+      return navigate("/login");
+    }
     const updated = await res.json();
     setCart((prev) => prev.map((item) => (item._id === id ? updated : item)));
   };
@@ -41,21 +66,52 @@ const Checkout = () => {
   const handleDecrease = async (id) => {
     const res = await fetch(`${API_BASE}/api/cart/${id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({ type: "dec" }),
     });
+    if (res.status === 401) {
+      localStorage.removeItem("token");
+      return navigate("/login");
+    }
     const updated = await res.json();
     setCart((prev) => prev.map((item) => (item._id === id ? updated : item)));
   };
 
   const handleDelete = async (id) => {
-    await fetch(`${API_BASE}/api/cart/${id}`, { method: "DELETE" });
+    const res = await fetch(`${API_BASE}/api/cart/${id}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    });
+    if (res.status === 401) {
+      localStorage.removeItem("token");
+      return navigate("/login");
+    }
     setCart((prev) => prev.filter((item) => item._id !== id));
   };
 
-  const handleCheckout = () => {
-    alert("✅ Order placed successfully!");
-    setCart([]);
+  // Checkout (call backend to place order, then clear cart)
+  const handleCheckout = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/orders/checkout`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+      });
+      if (res.status === 401) {
+        localStorage.removeItem("token");
+        return navigate("/login");
+      }
+      if (!res.ok) {
+        alert("❌ Failed to place order.");
+        return;
+      }
+      alert("✅ Order placed successfully!");
+      setCart([]);
+    } catch (err) {
+      alert("❌ Error placing order.");
+    }
   };
 
   const subtotal = cart.reduce(
