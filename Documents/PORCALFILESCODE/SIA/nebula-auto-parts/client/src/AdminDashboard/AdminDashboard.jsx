@@ -9,7 +9,7 @@ const AdminDashboard = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [message, setMessage] = useState(null);
-  const [profileFile, setProfileFile] = useState(null); // for new profile upload
+  const [profileFile, setProfileFile] = useState(null);
 
   const API_URL = import.meta.env.VITE_API_BASE?.replace(/\/$/, "");
   const navigate = useNavigate();
@@ -44,6 +44,7 @@ const AdminDashboard = () => {
     fetchAdminData();
   }, [API_URL, navigate]);
 
+  // Select a user
   const handleSelectUser = (user) => {
     setSelectedUser(user);
     setEditMode(false);
@@ -61,11 +62,11 @@ const AdminDashboard = () => {
     if (e.target.files[0]) setProfileFile(e.target.files[0]);
   };
 
+  // Save user
   const handleSaveUser = async () => {
     setMessage(null);
     try {
       const token = localStorage.getItem("token");
-
       let formData = new FormData();
       formData.append("name", selectedUser.name);
       formData.append("email", selectedUser.email);
@@ -101,6 +102,7 @@ const AdminDashboard = () => {
     }
   };
 
+  // Delete user
   const handleDeleteUser = async (id) => {
     if (!window.confirm("Delete this user?")) return;
     try {
@@ -120,16 +122,20 @@ const AdminDashboard = () => {
     }
   };
 
-  // Profile picture URL logic
-  const getProfilePictureUrl = () => {
-    if (preview) {
-      return preview;
-    }
-    if (form.profilePicture && form.profilePicture._id) {
-      return `${API_URL}/api/profile-picture/${form.profilePicture._id}`;
-    }
-    return "";
+  // Profile picture URL
+  const getProfilePictureUrl = (user) => {
+    if (profileFile) return URL.createObjectURL(profileFile);
+    if (user.profilePicture && user.profilePicture.$oid)
+      return `${API_URL}/api/profile-picture/${user.profilePicture.$oid}`;
+    return null;
   };
+
+  // Cleanup preview URL
+  useEffect(() => {
+    return () => {
+      if (profileFile) URL.revokeObjectURL(profileFile);
+    };
+  }, [profileFile]);
 
   if (loading)
     return (
@@ -173,18 +179,11 @@ const AdminDashboard = () => {
               onClick={() => handleSelectUser(user)}
             >
               <div className="user-avatar">
-                {user.profilePicture ? (
+                {getProfilePictureUrl(user) ? (
                   <img
-                    src={getProfilePictureUrl()}
-                    alt="Profile"
-                    style={{
-                      display: getProfilePictureUrl() ? "block" : "none",
-                    }}
-                    onError={(e) => {
-                      e.target.src = "";
-                      e.target.style.display = "none";
-                      // let the placeholder show
-                    }}
+                    src={getProfilePictureUrl(user)}
+                    alt={user.name}
+                    onError={(e) => (e.target.style.display = "none")}
                   />
                 ) : (
                   <div className="user-placeholder">
