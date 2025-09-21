@@ -1,7 +1,11 @@
-// routes/auth.js
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const mongoose = require("mongoose");
+const multer = require("multer");
+const { GridFsStorage } = require("multer-gridfs-storage");
+const Grid = require("gridfs-stream");
+
 const User = require("../models/user");
 
 const router = express.Router();
@@ -20,21 +24,37 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
+// ===== GRIDFS SETUP =====
+let gfs;
+mongoose.connection.once("open", () => {
+  gfs = Grid(mongoose.connection.db, mongoose.mongo);
+  gfs.collection("profilePics"); // bucket name
+});
+
+const storage = new GridFsStorage({
+  url: process.env.MONGO_URI,
+  file: (req, file) => {
+    return {
+      filename: `${Date.now()}-profile-${file.originalname}`,
+      bucketName: "profilePics",
+    };
+  },
+});
+
+const upload = multer({ storage });
+
 // ===== REGISTER =====
 router.post("/register", async (req, res) => {
   try {
     const { name, email, password, phone, gender, address } = req.body;
 
-    // Check if email already exists
     const existing = await User.findOne({ email });
     if (existing) {
       return res.status(400).json({ success: false, message: "Email already registered" });
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create new user
     const newUser = new User({
       name,
       email,
@@ -42,12 +62,14 @@ router.post("/register", async (req, res) => {
       phone,
       gender,
       address,
+      profilePic: null, // initially no picture
     });
 
     await newUser.save();
 
-    // Generate token
-    const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET || "fallback_secret", { expiresIn: "7d" });
+    const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET || "fallback_secret", {
+      expiresIn: "7d",
+    });
 
     res.status(201).json({
       success: true,
@@ -60,6 +82,7 @@ router.post("/register", async (req, res) => {
         phone: newUser.phone,
         gender: newUser.gender,
         address: newUser.address,
+        profilePic: null,
       },
     });
   } catch (err) {
@@ -79,7 +102,9 @@ router.post("/login", async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(401).json({ success: false, message: "Invalid email or password" });
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || "fallback_secret", { expiresIn: "7d" });
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || "fallback_secret", {
+      expiresIn: "7d",
+    });
 
     res.json({
       success: true,
@@ -91,6 +116,7 @@ router.post("/login", async (req, res) => {
         phone: user.phone,
         gender: user.gender,
         address: user.address,
+        profilePic: user.profilePic,
       },
     });
   } catch (err) {
@@ -104,7 +130,13 @@ router.get("/profile", authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-password");
     if (!user) return res.status(404).json({ message: "User not found" });
-    res.json(user);
+
+    res.json({
+      ...user.toObject(),
+      profilePicUrl: user.profilePic
+        ? `${process.env.API_BASE}/api/auth/profile/picture/${user.profilePic}`
+        : null,
+    });
   } catch (err) {
     console.error("❌ Profile fetch error:", err);
     res.status(500).json({ message: "Server error" });
@@ -125,6 +157,42 @@ router.put("/profile", authMiddleware, async (req, res) => {
     res.json(updatedUser);
   } catch (err) {
     console.error("❌ Profile update error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ===== UPLOAD PROFILE PICTURE =====
+router.post("/profile/picture", authMiddleware, upload.single("profilePic"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ success: false, message: "No file uploaded" });
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.id,
+      { profilePic: req.file.filename },
+      { new: true }
+    ).select("-password");
+
+    res.json({
+      success: true,
+      message: "Profile picture updated",
+      user: updatedUser,
+    });
+  } catch (err) {
+    console.error("❌ Profile pic upload error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// ===== GET PROFILE PICTURE FILE =====
+router.get("/profile/picture/:filename", async (req, res) => {
+  try {
+    const file = await gfs.files.findOne({ filename: req.params.filename });
+    if (!file) return res.status(404).json({ message: "No file found" });
+
+    const readStream = gfs.createReadStream(file.filename);
+    readStream.pipe(res);
+  } catch (err) {
+    console.error("❌ Fetch profile pic error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
