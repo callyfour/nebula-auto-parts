@@ -9,10 +9,10 @@ const ProfilePage = () => {
     phone: "",
     gender: "",
     address: "",
-    profilePicture: "", // store profile picture URL from backend
+    profilePicture: null, // store profile picture object from backend
   });
-  const [imageFile, setImageFile] = useState(null); // new state for file
-  const [preview, setPreview] = useState(null); // preview before upload
+  const [imageFile, setImageFile] = useState(null);
+  const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
@@ -51,13 +51,15 @@ const ProfilePage = () => {
         }
 
         const data = await res.json();
+        console.log("Profile data received:", data); // Debug log
+
         setForm({
           name: data.name || "",
           email: data.email || "",
           phone: data.phone || "",
           gender: data.gender || "",
           address: data.address || "",
-          profilePicture: data.profilePicture || "", // load picture URL
+          profilePicture: data.profilePicture || null, // This is the populated image object
         });
       } catch (err) {
         console.error("❌ Error fetching profile:", err);
@@ -79,6 +81,8 @@ const ProfilePage = () => {
     setImageFile(file);
     if (file) {
       setPreview(URL.createObjectURL(file));
+    } else {
+      setPreview(null);
     }
   };
 
@@ -95,6 +99,8 @@ const ProfilePage = () => {
       formData.append("phone", form.phone);
       formData.append("gender", form.gender);
       formData.append("address", form.address);
+      formData.append("category", "profile"); // Add category for profile pictures
+
       if (imageFile) {
         formData.append("profilePicture", imageFile);
       }
@@ -102,7 +108,7 @@ const ProfilePage = () => {
       const res = await fetch(`${API_URL}/api/user/profile`, {
         method: "PUT",
         headers: {
-          Authorization: `Bearer ${token}`, // don’t set Content-Type, browser handles it
+          Authorization: `Bearer ${token}`,
         },
         body: formData,
       });
@@ -113,31 +119,65 @@ const ProfilePage = () => {
       }
 
       if (!res.ok) {
-        const text = await res.text();
-        console.error("❌ Profile update failed:", res.status, text);
-        setMessage("Failed to update profile.");
+        const errorData = await res
+          .json()
+          .catch(() => ({ message: "Unknown error" }));
+        console.error("❌ Profile update failed:", res.status, errorData);
+        setMessage(
+          `Failed to update profile: ${errorData.message || "Unknown error"}`
+        );
         return;
       }
 
       const updatedData = await res.json();
+      console.log("Updated profile data:", updatedData); // Debug log
+
       setForm({
         name: updatedData.name || "",
         email: updatedData.email || "",
         phone: updatedData.phone || "",
         gender: updatedData.gender || "",
         address: updatedData.address || "",
-        profilePicture: updatedData.profilePicture || "",
+        profilePicture: updatedData.profilePicture || null,
       });
+
+      // Clear the file input and preview
       setImageFile(null);
       setPreview(null);
+      // Reset file input
+      const fileInput = document.querySelector('input[type="file"]');
+      if (fileInput) fileInput.value = "";
+
       setProfileExists(true);
       setMessage("✅ Profile updated successfully!");
+
+      // Clear message after 3 seconds
+      setTimeout(() => setMessage(null), 3000);
     } catch (err) {
       console.error("❌ Error updating profile:", err);
       setMessage("An error occurred. Please try again.");
     } finally {
       setSaving(false);
     }
+  };
+
+  // Function to get profile picture URL
+  const getProfilePictureUrl = () => {
+    if (preview) {
+      return preview; // Show preview if user selected a new file
+    }
+
+    if (form.profilePicture && form.profilePicture._id) {
+      return `${API_URL}/api/images/${form.profilePicture._id}`;
+    }
+
+    return null;
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    navigate("/login");
   };
 
   if (loading)
@@ -154,28 +194,62 @@ const ProfilePage = () => {
         <h3>Menu</h3>
         <button className="active">Profile</button>
         <button>Settings</button>
-        <button>Logout</button>
+        <button onClick={handleLogout}>Logout</button>
       </div>
 
       {/* Main Profile Card */}
       <div className="profile-card">
         <div className="profile-avatar">
-          {preview ? (
-            <img src={preview} alt="Preview" />
-          ) : form.profilePicture ? (
-            <img src={`${API_URL}/${form.profilePicture}`} alt="Profile" />
+          {getProfilePictureUrl() ? (
+            <img
+              src={getProfilePictureUrl()}
+              alt="Profile"
+              onError={(e) => {
+                console.error("Failed to load profile image");
+                e.target.style.display = "none";
+                e.target.nextSibling.style.display = "flex";
+              }}
+            />
           ) : (
-            <div className="placeholder-avatar">No Image</div>
+            <div className="placeholder-avatar">
+              {form.name ? form.name.charAt(0).toUpperCase() : "?"}
+            </div>
+          )}
+          {getProfilePictureUrl() && (
+            <div className="placeholder-avatar" style={{ display: "none" }}>
+              {form.name ? form.name.charAt(0).toUpperCase() : "?"}
+            </div>
           )}
         </div>
-        <input type="file" accept="image/*" onChange={handleFileChange} />
+
+        <div className="file-input-container">
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            disabled={saving}
+            id="profile-picture-input"
+          />
+          <label htmlFor="profile-picture-input" className="file-input-label">
+            {form.profilePicture ? "Change Picture" : "Upload Picture"}
+          </label>
+        </div>
 
         <div className="profile-name">{form.name || "Your Name"}</div>
-        <div className="profile-role">User Role</div>
+        <div className="profile-role">User</div>
 
-        {message && <p className="profile-message">{message}</p>}
+        {message && (
+          <div
+            className={`profile-message ${
+              message.includes("✅") ? "success" : "error"
+            }`}
+          >
+            {message}
+          </div>
+        )}
+
         {!profileExists && (
-          <p className="profile-message">
+          <p className="profile-message info">
             You currently do not have a profile. Fill out the form below to
             create one.
           </p>
@@ -192,6 +266,7 @@ const ProfilePage = () => {
               onChange={handleChange}
               disabled={saving}
               type="text"
+              placeholder="Enter your name"
             />
           </div>
           <div style={{ flex: 1 }}>
@@ -203,6 +278,7 @@ const ProfilePage = () => {
               onChange={handleChange}
               disabled={saving}
               type="email"
+              placeholder="Enter your email"
             />
           </div>
         </div>
@@ -217,6 +293,7 @@ const ProfilePage = () => {
               onChange={handleChange}
               disabled={saving}
               type="tel"
+              placeholder="Enter your phone number"
             />
           </div>
           <div style={{ flex: 1 }}>
@@ -257,6 +334,7 @@ const ProfilePage = () => {
             onChange={handleChange}
             disabled={saving}
             type="text"
+            placeholder="Enter your address"
           />
         </div>
 
