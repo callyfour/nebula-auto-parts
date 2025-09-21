@@ -16,11 +16,11 @@ const AdminDashboard = () => {
 
   // Fetch users and stats
   useEffect(() => {
-    const fetchAdminData = async () => {
+    const fetchData = async () => {
       const token = localStorage.getItem("token");
       if (!token) return navigate("/login");
+
       try {
-        // Users
         const resUsers = await fetch(`${API_URL}/api/admin/users`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -28,7 +28,6 @@ const AdminDashboard = () => {
         const usersData = await resUsers.json();
         setUsers(usersData);
 
-        // Stats
         const resStats = await fetch(`${API_URL}/api/admin/stats`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -41,10 +40,10 @@ const AdminDashboard = () => {
         setLoading(false);
       }
     };
-    fetchAdminData();
+
+    fetchData();
   }, [API_URL, navigate]);
 
-  // Select a user
   const handleSelectUser = (user) => {
     setSelectedUser(user);
     setEditMode(false);
@@ -62,12 +61,11 @@ const AdminDashboard = () => {
     if (e.target.files[0]) setProfileFile(e.target.files[0]);
   };
 
-  // Save user
   const handleSaveUser = async () => {
     setMessage(null);
     try {
       const token = localStorage.getItem("token");
-      let formData = new FormData();
+      const formData = new FormData();
       formData.append("name", selectedUser.name);
       formData.append("email", selectedUser.email);
       formData.append("role", selectedUser.role);
@@ -102,7 +100,6 @@ const AdminDashboard = () => {
     }
   };
 
-  // Delete user
   const handleDeleteUser = async (id) => {
     if (!window.confirm("Delete this user?")) return;
     try {
@@ -122,20 +119,12 @@ const AdminDashboard = () => {
     }
   };
 
-  // Profile picture URL
   const getProfilePictureUrl = (user) => {
     if (profileFile) return URL.createObjectURL(profileFile);
     if (user.profilePicture && user.profilePicture.$oid)
       return `${API_URL}/api/profile-picture/${user.profilePicture.$oid}`;
     return null;
   };
-
-  // Cleanup preview URL
-  useEffect(() => {
-    return () => {
-      if (profileFile) URL.revokeObjectURL(profileFile);
-    };
-  }, [profileFile]);
 
   if (loading)
     return (
@@ -174,7 +163,7 @@ const AdminDashboard = () => {
             <div
               key={user._id}
               className={`user-item ${
-                selectedUser && selectedUser._id === user._id ? "selected" : ""
+                selectedUser?._id === user._id ? "selected" : ""
               }`}
               onClick={() => handleSelectUser(user)}
             >
@@ -200,7 +189,7 @@ const AdminDashboard = () => {
           ))}
         </div>
 
-        {/* Edit user card */}
+        {/* Edit User */}
         {selectedUser && (
           <div className="edit-user-card">
             <h3>Edit User</h3>
