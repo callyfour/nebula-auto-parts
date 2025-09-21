@@ -55,14 +55,6 @@
 
 /* Profile avatar */
 .profile-avatar {
-  width: 100px;
-  height: 100px;
-  background: #555;
-  border-radius: 50%;
-  margin-bottom: 15px;
-}
-/* Profile avatar */
-.profile-avatar {
   width: 120px;
   height: 120px;
   border-radius: 50%;
@@ -71,18 +63,40 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
 }
 
 .profile-avatar img {
   width: 100%;
   height: 100%;
   object-fit: cover; /* makes image fill the circle properly */
+  border-radius: 50%;
+  display: block;
+  background: #333;
 }
 
+/* Only show placeholder if no image is loaded or image fails */
 .placeholder-avatar {
   color: #aaa;
-  font-size: 0.9rem;
+  font-size: 2.5rem;
+  font-weight: bold;
   text-align: center;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #444;
+  border-radius: 50%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+}
+
+/* Hide placeholder when an image is loaded */
+.profile-avatar img:not([src=""]) + .placeholder-avatar {
+  display: none;
 }
 
 /* Style the file input */
@@ -90,6 +104,9 @@
   margin-top: 10px;
   font-size: 0.9rem;
   color: #fff;
+  background: transparent;
+  border: none;
+  width: 100%;
 }
 
 .profile-card input[type="file"]::-webkit-file-upload-button {

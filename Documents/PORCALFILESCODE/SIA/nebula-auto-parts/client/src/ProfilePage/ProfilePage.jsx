@@ -9,7 +9,7 @@ const ProfilePage = () => {
     phone: "",
     gender: "",
     address: "",
-    profilePicture: null, // store profile picture object from backend
+    profilePicture: null,
   });
   const [imageFile, setImageFile] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -21,7 +21,7 @@ const ProfilePage = () => {
   const API_URL = import.meta.env.VITE_API_BASE?.replace(/\/$/, "");
   const navigate = useNavigate();
 
-  // Move fetchProfile outside useEffect so we can call it after save
+  // Profile fetch logic
   const fetchProfile = async () => {
     setLoading(true);
     try {
@@ -51,15 +51,13 @@ const ProfilePage = () => {
       }
 
       const data = await res.json();
-      console.log("Profile data received:", data); // Debug log
-
       setForm({
         name: data.name || "",
         email: data.email || "",
         phone: data.phone || "",
         gender: data.gender || "",
         address: data.address || "",
-        profilePicture: data.profilePicture || null, // This is the populated image object
+        profilePicture: data.profilePicture || null,
       });
       setProfileExists(true);
       setMessage(null);
@@ -103,7 +101,7 @@ const ProfilePage = () => {
       formData.append("phone", form.phone);
       formData.append("gender", form.gender);
       formData.append("address", form.address);
-      formData.append("category", "profile"); // Add category for profile pictures
+      formData.append("category", "profile");
 
       if (imageFile) {
         formData.append("profilePicture", imageFile);
@@ -126,45 +124,37 @@ const ProfilePage = () => {
         const errorData = await res
           .json()
           .catch(() => ({ message: "Unknown error" }));
-        console.error("❌ Profile update failed:", res.status, errorData);
         setMessage(
           `Failed to update profile: ${errorData.message || "Unknown error"}`
         );
         return;
       }
 
-      // Instead of using returned data, fetch profile again to ensure fresh data
       await fetchProfile();
 
-      // Clear the file input and preview
       setImageFile(null);
       setPreview(null);
       const fileInput = document.querySelector('input[type="file"]');
       if (fileInput) fileInput.value = "";
 
       setMessage("✅ Profile updated successfully!");
-
-      // Clear message after 3 seconds
       setTimeout(() => setMessage(null), 3000);
     } catch (err) {
-      console.error("❌ Error updating profile:", err);
       setMessage("An error occurred. Please try again.");
     } finally {
       setSaving(false);
     }
   };
 
-  // Function to get profile picture URL
+  // Profile picture URL logic
   const getProfilePictureUrl = () => {
     if (preview) {
-      return preview; // Show preview if user selected a new file
+      return preview;
     }
-
     if (form.profilePicture && form.profilePicture._id) {
-      return `${API_URL}/api/images/${form.profilePicture._id}`;
+      return `${API_URL}/api/profile-picture/${form.profilePicture._id}`;
     }
-
-    return null;
+    return "";
   };
 
   const handleLogout = () => {
@@ -182,7 +172,6 @@ const ProfilePage = () => {
 
   return (
     <div className="profile-container">
-      {/* Sidebar */}
       <div className="profile-sidebar">
         <h3>Menu</h3>
         <button className="active">Profile</button>
@@ -190,29 +179,28 @@ const ProfilePage = () => {
         <button onClick={handleLogout}>Logout</button>
       </div>
 
-      {/* Main Profile Card */}
       <div className="profile-card">
         <div className="profile-avatar">
-          {getProfilePictureUrl() ? (
-            <img
-              src={getProfilePictureUrl()}
-              alt="Profile"
-              onError={(e) => {
-                console.error("Failed to load profile image");
-                e.target.style.display = "none";
-                e.target.nextSibling.style.display = "flex";
-              }}
-            />
-          ) : (
-            <div className="placeholder-avatar">
-              {form.name ? form.name.charAt(0).toUpperCase() : "?"}
-            </div>
-          )}
-          {getProfilePictureUrl() && (
-            <div className="placeholder-avatar" style={{ display: "none" }}>
-              {form.name ? form.name.charAt(0).toUpperCase() : "?"}
-            </div>
-          )}
+          <img
+            src={getProfilePictureUrl()}
+            alt="Profile"
+            style={{
+              display: getProfilePictureUrl() ? "block" : "none",
+            }}
+            onError={(e) => {
+              e.target.src = "";
+              e.target.style.display = "none";
+              // let the placeholder show
+            }}
+          />
+          <div
+            className="placeholder-avatar"
+            style={{
+              display: getProfilePictureUrl() ? "none" : "flex",
+            }}
+          >
+            {form.name ? form.name.charAt(0).toUpperCase() : "?"}
+          </div>
         </div>
 
         <div className="file-input-container">
@@ -248,7 +236,6 @@ const ProfilePage = () => {
           </p>
         )}
 
-        {/* Form fields */}
         <div className="form-row">
           <div style={{ flex: 1 }}>
             <label htmlFor="name">Name</label>
