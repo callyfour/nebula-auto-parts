@@ -7,6 +7,7 @@ const userSchema = new mongoose.Schema({
   phone: { type: String },
   gender: { type: String, enum: ["Male", "Female"] },
   address: { type: String },
+  profilePicture: { type: String, default: "" }, // ✅ new field
 });
 
 module.exports = mongoose.model("User", userSchema, "users");
