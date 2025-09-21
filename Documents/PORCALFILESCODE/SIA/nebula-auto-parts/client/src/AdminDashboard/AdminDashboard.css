@@ -36,6 +36,7 @@
   color: #fff;
   transition: background 0.3s;
   font-size: 1rem;
+  flex: 1 1 auto;
 }
 
 .admin-sidebar button.active,
@@ -67,6 +68,17 @@
   gap: 12px;
   max-height: 400px;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #555 transparent;
+}
+
+.user-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.user-list::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 3px;
 }
 
 /* Each user row */
@@ -100,7 +112,6 @@
   position: relative;
 }
 
-/* Actual image */
 .user-avatar img {
   width: 100%;
   height: 100%;
@@ -108,11 +119,8 @@
   display: block;
 }
 
-/* Placeholder if no image */
+/* Placeholder */
 .user-placeholder {
-  position: absolute;
-  top: 0;
-  left: 0;
   width: 100%;
   height: 100%;
   display: flex;
@@ -123,16 +131,10 @@
   color: #aaa;
   background: #444;
   border-radius: 50%;
-  z-index: 1;
-}
-
-/* Hide placeholder when image is present */
-.user-avatar img:not([src=""]) + .user-placeholder {
-  display: none;
 }
 
 /* User details */
-.user-item div {
+.user-details {
   display: flex;
   flex-direction: column;
 }
@@ -160,6 +162,10 @@
   flex-wrap: wrap;
 }
 
+.edit-user-card .form-row > div {
+  flex: 1 1 250px;
+}
+
 .edit-user-card label {
   font-weight: bold;
   margin-bottom: 5px;
@@ -169,7 +175,8 @@
 .edit-user-card input[type="text"],
 .edit-user-card input[type="email"],
 .edit-user-card input[type="tel"],
-.edit-user-card select {
+.edit-user-card select,
+.edit-user-card input[type="file"] {
   width: 100%;
   padding: 10px 12px;
   border-radius: 8px;
@@ -178,6 +185,7 @@
   color: #fff;
 }
 
+/* Buttons */
 .btn-container {
   display: flex;
   gap: 10px;
@@ -211,6 +219,7 @@
   color: #fff;
 }
 
+/* Messages */
 .admin-message {
   margin-top: 10px;
   font-weight: bold;
@@ -224,16 +233,6 @@
   color: #f44336;
 }
 
-/* Scrollbar adjustments */
-.user-list::-webkit-scrollbar {
-  width: 6px;
-}
-
-.user-list::-webkit-scrollbar-thumb {
-  background: #555;
-  border-radius: 3px;
-}
-
 /* --------------------
    Responsive Adjustments
 ---------------------- */
@@ -243,18 +242,22 @@
     padding: 30px 20px;
     gap: 20px;
   }
+
   .admin-sidebar {
     flex-direction: row;
     justify-content: space-around;
     gap: 10px;
     width: 100%;
   }
+
   .admin-card {
     padding: 20px;
   }
+
   .edit-user-card .form-row {
     flex-direction: column;
   }
+
   .btn-container {
     justify-content: center;
   }
