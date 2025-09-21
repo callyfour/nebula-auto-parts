@@ -1,3 +1,4 @@
+// routes/auth.js
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -9,6 +10,26 @@ const Grid = require("gridfs-stream");
 const User = require("../models/user");
 
 const router = express.Router();
+
+// ===== GRIDFS SETUP =====
+let gfs;
+const conn = mongoose.connection;
+conn.once("open", () => {
+  gfs = Grid(conn.db, mongoose.mongo);
+  gfs.collection("uploads");
+});
+
+// Multer Storage Engine (GridFS)
+const storage = new GridFsStorage({
+  url: process.env.MONGO_URI || "mongodb://localhost:27017/yourDB",
+  file: (req, file) => {
+    return {
+      filename: `${Date.now()}-${file.originalname}`,
+      bucketName: "uploads",
+    };
+  },
+});
+const upload = multer({ storage });
 
 // ===== AUTH MIDDLEWARE =====
 const authMiddleware = (req, res, next) => {
@@ -23,25 +44,6 @@ const authMiddleware = (req, res, next) => {
     return res.status(401).json({ message: "Invalid or expired token" });
   }
 };
-
-// ===== GRIDFS SETUP =====
-let gfs;
-mongoose.connection.once("open", () => {
-  gfs = Grid(mongoose.connection.db, mongoose.mongo);
-  gfs.collection("profilePics"); // bucket name
-});
-
-const storage = new GridFsStorage({
-  url: process.env.MONGO_URI,
-  file: (req, file) => {
-    return {
-      filename: `${Date.now()}-profile-${file.originalname}`,
-      bucketName: "profilePics",
-    };
-  },
-});
-
-const upload = multer({ storage });
 
 // ===== REGISTER =====
 router.post("/register", async (req, res) => {
@@ -62,14 +64,11 @@ router.post("/register", async (req, res) => {
       phone,
       gender,
       address,
-      profilePic: null, // initially no picture
     });
 
     await newUser.save();
 
-    const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET || "fallback_secret", {
-      expiresIn: "7d",
-    });
+    const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET || "fallback_secret", { expiresIn: "7d" });
 
     res.status(201).json({
       success: true,
@@ -82,7 +81,7 @@ router.post("/register", async (req, res) => {
         phone: newUser.phone,
         gender: newUser.gender,
         address: newUser.address,
-        profilePic: null,
+        profilePicture: newUser.profilePicture || null,
       },
     });
   } catch (err) {
@@ -102,9 +101,7 @@ router.post("/login", async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(401).json({ success: false, message: "Invalid email or password" });
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || "fallback_secret", {
-      expiresIn: "7d",
-    });
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || "fallback_secret", { expiresIn: "7d" });
 
     res.json({
       success: true,
@@ -116,7 +113,7 @@ router.post("/login", async (req, res) => {
         phone: user.phone,
         gender: user.gender,
         address: user.address,
-        profilePic: user.profilePic,
+        profilePicture: user.profilePicture || null,
       },
     });
   } catch (err) {
@@ -130,13 +127,7 @@ router.get("/profile", authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-password");
     if (!user) return res.status(404).json({ message: "User not found" });
-
-    res.json({
-      ...user.toObject(),
-      profilePicUrl: user.profilePic
-        ? `${process.env.API_BASE}/api/auth/profile/picture/${user.profilePic}`
-        : null,
-    });
+    res.json(user);
   } catch (err) {
     console.error("❌ Profile fetch error:", err);
     res.status(500).json({ message: "Server error" });
@@ -162,37 +153,37 @@ router.put("/profile", authMiddleware, async (req, res) => {
 });
 
 // ===== UPLOAD PROFILE PICTURE =====
-router.post("/profile/picture", authMiddleware, upload.single("profilePic"), async (req, res) => {
+router.post("/profile/picture", authMiddleware, upload.single("profilePicture"), async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ success: false, message: "No file uploaded" });
+    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
-    const updatedUser = await User.findByIdAndUpdate(
+    const user = await User.findByIdAndUpdate(
       req.user.id,
-      { profilePic: req.file.filename },
+      { profilePicture: req.file.filename },
       { new: true }
     ).select("-password");
 
     res.json({
       success: true,
       message: "Profile picture updated",
-      user: updatedUser,
+      user,
     });
   } catch (err) {
-    console.error("❌ Profile pic upload error:", err);
-    res.status(500).json({ success: false, message: "Server error" });
+    console.error("❌ Upload error:", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
-// ===== GET PROFILE PICTURE FILE =====
+// ===== GET PROFILE PICTURE =====
 router.get("/profile/picture/:filename", async (req, res) => {
   try {
     const file = await gfs.files.findOne({ filename: req.params.filename });
-    if (!file) return res.status(404).json({ message: "No file found" });
+    if (!file) return res.status(404).json({ message: "File not found" });
 
     const readStream = gfs.createReadStream(file.filename);
     readStream.pipe(res);
   } catch (err) {
-    console.error("❌ Fetch profile pic error:", err);
+    console.error("❌ Fetch picture error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
