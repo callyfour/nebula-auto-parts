@@ -142,48 +142,147 @@ function adminMiddleware(req, res, next) {
 // --- Auth ---
 app.post("/api/auth/register", async (req, res) => {
   try {
-    const { name, email, password, phone, gender, address } = req.body;
-    const existing = await User.findOne({ email });
-    if (existing) return res.status(400).json({ message: "Email already used" });
+    const { name, email, password, phone, gender, address, role } = req.body;
+    
+    console.log("Registration attempt:", { email, name });
+    
+    // Check if user already exists
+    const existing = await User.findOne({ 
+      email: { $regex: new RegExp(`^${email.trim()}$`, 'i') }
+    });
+    
+    if (existing) {
+      console.log("Email already exists:", email);
+      return res.status(400).json({ 
+        success: false, 
+        message: "Email already in use" 
+      });
+    }
 
+    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
+    
+    // Create user
     const user = new User({
       name,
-      email,
+      email: email.trim().toLowerCase(),
       password: hashedPassword,
       phone,
       gender,
       address,
+      role: role || "user"
     });
+    
     await user.save();
+    console.log("User created successfully:", email);
 
-    res.status(201).json({ success: true, message: "User registered" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post("/api/auth/login", async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: "Invalid credentials" });
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch)
-      return res.status(400).json({ message: "Invalid credentials" });
-
+    // Generate token
     const token = jwt.sign(
-      { id: user._id, email: user.email, role: user.role },
-      JWT_SECRET,
+      { id: user._id, email: user.email, role: user.role }, 
+      JWT_SECRET, 
       { expiresIn: "1d" }
     );
 
-    res.json({ token, role: user.role });
+    // Return success with token
+    res.status(201).json({ 
+      success: true, 
+      message: "User registered successfully",
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        gender: user.gender,
+        address: user.address,
+        role: user.role,
+      }
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("❌ Registration error:", err);
+    res.status(500).json({ 
+      success: false, 
+      message: "Server error",
+      error: err.message 
+    });
   }
 });
+
+
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    console.log("Login attempt:", { email: req.body.email, hasPassword: !!req.body.password });
+    
+    const { email, password } = req.body;
+
+    // Validate input
+    if (!email || !password) {
+      console.log("Missing email or password");
+      return res.status(400).json({ 
+        success: false, 
+        message: "Email and password are required" 
+      });
+    }
+
+    // Find user (case-insensitive email search)
+    const user = await User.findOne({ 
+      email: { $regex: new RegExp(`^${email.trim()}$`, 'i') }
+    });
+    
+    console.log("User found:", !!user);
+    
+    if (!user) {
+      console.log("User not found for email:", email);
+      return res.status(400).json({ 
+        success: false, 
+        message: "Invalid email or password" 
+      });
+    }
+
+    // Check password
+    console.log("Checking password...");
+    const isMatch = await bcrypt.compare(password, user.password);
+    console.log("Password match:", isMatch);
+    
+    if (!isMatch) {
+      console.log("Password mismatch for user:", email);
+      return res.status(400).json({ 
+        success: false, 
+        message: "Invalid email or password" 
+      });
+    }
+
+    // Generate token
+    const token = jwt.sign(
+      { id: user._id, email: user.email, role: user.role }, 
+      JWT_SECRET, 
+      { expiresIn: "1d" }
+    );
+
+    console.log("Login successful for user:", email);
+
+    // ✅ FIXED: Return the correct format that frontend expects
+    res.json({
+      success: true,
+      message: "Login successful",
+      token,
+      user: { 
+        id: user._id, 
+        name: user.name, 
+        email: user.email, 
+        role: user.role 
+      },
+    });
+  } catch (err) {
+    console.error("❌ Login error:", err);
+    res.status(500).json({ 
+      success: false, 
+      message: "Server error",
+      error: err.message 
+    });
+  }
+});
+
 
 /* ======================
    🔹 PROFILE ROUTES (with profile picture handling)
