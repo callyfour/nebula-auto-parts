@@ -140,7 +140,7 @@ function authMiddleware(req, res, next) {
    🔹 ROUTES
    ====================== */
 
-import jwt from "jsonwebtoken";
+
 import { google } from "googleapis";
 import User from "./models/User.js"; // adjust path if needed
 
@@ -157,7 +157,7 @@ app.get("/api/auth/google/callback", async (req, res) => {
     const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
     const { data: profile } = await oauth2.userinfo.get();
 
-    // ✅ Check if user exists in Mongo
+    // ✅ Check if user exists
     let user = await User.findOne({ email: profile.email });
     if (!user) {
       user = new User({
@@ -177,9 +177,8 @@ app.get("/api/auth/google/callback", async (req, res) => {
       { expiresIn: "1d" }
     );
 
-    // Decide response type:
+    // ✅ Redirect or JSON
     if (process.env.FRONTEND_URL) {
-      // 🔥 Redirect back to your frontend with token + user
       res.redirect(
         `${process.env.FRONTEND_URL}/auth-success?token=${token}&user=${encodeURIComponent(
           JSON.stringify({
@@ -192,25 +191,14 @@ app.get("/api/auth/google/callback", async (req, res) => {
         )}`
       );
     } else {
-      // 🔥 API style JSON response
-      res.json({
-        success: true,
-        message: "Google login successful",
-        token,
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          profilePicture: user.profilePicture,
-        },
-      });
+      res.json({ success: true, token, user });
     }
   } catch (err) {
     console.error("Google login error:", err);
     res.status(500).json({ message: "Google login failed" });
   }
 });
+
 
 
 
