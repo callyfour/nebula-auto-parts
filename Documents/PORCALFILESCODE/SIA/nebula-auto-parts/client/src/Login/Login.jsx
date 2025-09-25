@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import Navbar from "../Navbar/Navbar.jsx";
 import "./Login.css";
 import promoPhoto from "../assets/promo-photo.png";
+import googleLogo from "../assets/google-logo.png"; // ✅ Add a Google logo image in assets
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -50,6 +51,10 @@ export default function Login() {
     }
   };
 
+  const handleGoogleLogin = () => {
+    window.location.href = `${import.meta.env.VITE_API_BASE}/api/auth/google`;
+  };
+
   return (
     <div className="login-container">
       <Navbar />
@@ -84,6 +89,16 @@ export default function Login() {
 
             <button type="submit" className="btn" disabled={loading}>
               {loading ? "Signing In..." : "Sign In"}
+            </button>
+
+            {/* ✅ Google Login Button */}
+            <button
+              type="button"
+              className="google-btn"
+              onClick={handleGoogleLogin}
+            >
+              <img src={googleLogo} alt="Google" className="google-logo" />
+              Continue with Google
             </button>
 
             {error && <p className="error-message">{error}</p>}
