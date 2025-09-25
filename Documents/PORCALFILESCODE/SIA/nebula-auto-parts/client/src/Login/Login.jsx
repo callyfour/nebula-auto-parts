@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext.jsx"; // ✅ Adjust path
 import Navbar from "../Navbar/Navbar.jsx";
 import "./Login.css";
-import { useAuth } from "../contexts/AuthContext.jsx";
 import promoPhoto from "../assets/promo-photo.png";
 
 export default function Login() {
@@ -12,42 +12,37 @@ export default function Login() {
   const [error, setError] = useState("");
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, login: contextLogin } = useAuth(); // ✅ Now safe – provider is above
 
-  // Inside component:
-  const { login } = useAuth();
-  // In handleSubmit (after success):
-  login(data.token, data.user);
-  if (data.user.role === "admin") {
-    navigate("/admin", { replace: true });
-  } else {
-    navigate("/", { replace: true });
-  }
-  // In useEffect (Google callback, after parsing):
-  login(token, parsedUser);
-  if (parsedUser.role === "admin") {
-    navigate("/admin", { replace: true });
-  } else {
-    navigate("/", { replace: true });
-  }
-  // ✅ Handle Google callback from backend (/auth-success redirect)
+  // ✅ Redirect if already logged in (global via context)
+  useEffect(() => {
+    if (user) {
+      console.log("Already logged in via context, redirecting:", user); // Debug
+      if (user.role === "admin") {
+        navigate("/admin", { replace: true });
+      } else {
+        navigate("/", { replace: true });
+      }
+    }
+  }, [user, navigate]);
+
+  // ✅ Handle Google callback
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const token = params.get("token");
-    const userEncoded = params.get("user"); // This is URL-encoded JSON string from backend
+    const userEncoded = params.get("user");
 
     if (token && userEncoded) {
       try {
-        // ✅ Decode and parse the user data (backend uses encodeURIComponent(JSON.stringify()))
         const userDecoded = decodeURIComponent(userEncoded);
         const parsedUser = JSON.parse(userDecoded);
 
-        // ✅ Store parsed data in localStorage (token as string, user as JSON string)
-        localStorage.setItem("token", token);
-        localStorage.setItem("user", JSON.stringify(parsedUser));
+        contextLogin(token, parsedUser); // ✅ Use context instead of localStorage
 
-        console.log("Google login saved:", parsedUser); // Debug log (remove in prod)
+        console.log("Google login via context:", parsedUser); // Debug
 
-        // Redirect based on role
+        window.history.replaceState({}, "", window.location.pathname);
+
         if (parsedUser.role === "admin") {
           navigate("/admin", { replace: true });
         } else {
@@ -56,10 +51,10 @@ export default function Login() {
       } catch (err) {
         console.error("Failed to parse Google user data:", err);
         setError("Failed to process Google login. Please try again.");
-        // Optionally clear URL params: window.history.replaceState({}, '', window.location.pathname);
+        window.history.replaceState({}, "", window.location.pathname);
       }
     }
-  }, [location, navigate]);
+  }, [location, navigate, contextLogin]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -80,13 +75,10 @@ export default function Login() {
       setLoading(false);
 
       if (data.success) {
-        // Save token and user in localStorage
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("user", JSON.stringify(data.user));
+        contextLogin(data.token, data.user); // ✅ Use context
 
-        console.log("Regular login saved:", data.user); // Debug log (remove in prod)
+        console.log("Regular login via context:", data.user); // Debug
 
-        // Redirect based on role
         if (data.user.role === "admin") {
           navigate("/admin", { replace: true });
         } else {
@@ -103,13 +95,15 @@ export default function Login() {
   };
 
   const handleGoogleLogin = () => {
-    // ✅ Optional: Store current path to redirect back after Google login (if needed)
     const returnTo = location.pathname + location.search;
     const googleUrl = `${
       import.meta.env.VITE_API_BASE
     }/api/auth/google?returnTo=${encodeURIComponent(returnTo)}`;
     window.location.href = googleUrl;
   };
+
+  // If still loading from context, show nothing or spinner (but context handles global loading)
+  if (loading) return <div>Loading...</div>; // Optional
 
   return (
     <div className="login-container">
@@ -140,15 +134,13 @@ export default function Login() {
               <label>
                 <input type="checkbox" id="keepLoggedIn" /> Keep me logged in
               </label>
-              <a href="/forgot-password">Forgot Password</a>{" "}
-              {/* ✅ Made it a real link */}
+              <a href="/forgot-password">Forgot Password</a>
             </div>
 
             <button type="submit" className="btn" disabled={loading}>
               {loading ? "Signing In..." : "Sign In"}
             </button>
 
-            {/* ✅ Google Login Button */}
             <button
               type="button"
               className="google-btn"

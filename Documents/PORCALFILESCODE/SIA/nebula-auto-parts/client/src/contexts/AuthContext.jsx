@@ -1,4 +1,4 @@
-// src/contexts/AuthContext.jsx
+// src/contexts/AuthContext.jsx (or adjust path)
 import { createContext, useContext, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -16,7 +16,7 @@ export const AuthProvider = ({ children }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // ✅ Restore login from localStorage on app load
+    // Restore login from localStorage on app load (with error handling)
     const token = localStorage.getItem("token");
     const userStr = localStorage.getItem("user");
 
@@ -25,27 +25,16 @@ export const AuthProvider = ({ children }) => {
         const parsedUser = JSON.parse(userStr);
         setUser(parsedUser);
 
-        // Optional: Verify token with backend (using the /api/auth/verify route I suggested earlier)
-        // fetch(`${import.meta.env.VITE_API_BASE}/api/auth/verify`, {
-        //   method: "POST",
-        //   headers: { "Authorization": `Bearer ${token}` },
-        // }).then(res => res.json()).then(data => {
-        //   if (data.success) {
-        //     setUser (data.user);
-        //     localStorage.setItem("token", data.token);  // Update if refreshed
-        //   } else {
-        //     logout();  // Invalid token, clear and redirect
-        //   }
-        // }).catch(() => logout()).finally(() => setLoading(false));
-
         console.log("Restored user from storage:", parsedUser); // Debug
       } catch (err) {
         console.error("Failed to restore user:", err);
-        logout();
+        // Clear invalid data
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
       }
     }
 
-    setLoading(false);
+    setLoading(false); // Always resolve loading
   }, []);
 
   const login = (token, userData) => {
@@ -66,13 +55,23 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     loading,
-    // Helper: Get token for API calls
     getToken: () => localStorage.getItem("token"),
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {!loading && children}
-    </AuthContext.Provider>
-  );
+  if (loading) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100vh",
+        }}
+      >
+        Loading...
+      </div>
+    );
+  }
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
