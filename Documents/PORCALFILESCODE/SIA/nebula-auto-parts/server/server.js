@@ -141,8 +141,8 @@ function authMiddleware(req, res, next) {
    ====================== */
 
 
-import { google } from "googleapis";
-import User from "./models/User.js"; // adjust path if needed
+
+ 
 
 // Google callback route
 app.get("/api/auth/google/callback", async (req, res) => {
