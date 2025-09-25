@@ -5,20 +5,38 @@ const API_URL = import.meta.env.VITE_API_BASE?.replace(/\/$/, "");
 
 const NavRight = () => {
   const navigate = useNavigate();
-  const location = useLocation(); // detect page changes
+  const location = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [user, setUser] = useState(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
-  // ✅ Fetch user from database
-  const fetchUser = async () => {
+  // ✅ Load user from localStorage (Google or normal login)
+  const loadUserFromStorage = () => {
     const token = localStorage.getItem("token");
+    const storedUser = localStorage.getItem("user");
+
     if (!token) {
       setUser(null);
       return;
     }
 
+    if (storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+        return;
+      } catch (err) {
+        console.error("Invalid stored user JSON:", err);
+        localStorage.removeItem("user");
+      }
+    }
+
+    // fallback: fetch from backend if no stored user
+    fetchUserFromAPI(token);
+  };
+
+  // ✅ Fetch user from API (for email/password login fallback)
+  const fetchUserFromAPI = async (token) => {
     try {
       const res = await fetch(`${API_URL}/api/user/profile`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -26,6 +44,7 @@ const NavRight = () => {
 
       if (res.status === 401) {
         localStorage.removeItem("token");
+        localStorage.removeItem("user");
         setUser(null);
         navigate("/login");
         return;
@@ -38,18 +57,19 @@ const NavRight = () => {
 
       const data = await res.json();
       setUser(data);
+      localStorage.setItem("user", JSON.stringify(data));
     } catch (err) {
       console.error("Error fetching user:", err);
       setUser(null);
     }
   };
 
-  // Fetch user whenever location changes (e.g., after profile update)
+  // ✅ Refresh on page change
   useEffect(() => {
-    fetchUser();
+    loadUserFromStorage();
   }, [location]);
 
-  // Close dropdown if clicked outside
+  // ✅ Close dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
@@ -70,6 +90,7 @@ const NavRight = () => {
 
   const handleLogout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("user");
     setUser(null);
     navigate("/login");
   };
@@ -96,7 +117,15 @@ const NavRight = () => {
               />
             </svg>
             <span className="icon-wrapper">
-              <i className="bx bxs-user"></i>
+              {user.profilePicture ? (
+                <img
+                  src={user.profilePicture}
+                  alt="avatar"
+                  className="w-8 h-8 rounded-full"
+                />
+              ) : (
+                <i className="bx bxs-user"></i>
+              )}
             </span>
             <span className="user-name">{user.name}</span>
           </button>
