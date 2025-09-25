@@ -8,7 +8,7 @@ const userSchema = new mongoose.Schema({
   phone: { type: String },
   gender: { type: String, enum: ["Male", "Female"] },
   address: { type: String },
-  profilePicture: { type: String, default: "" }, // ✅ can also store Google avatar
+  profilePicture: { type: mongoose.Schema.Types.Mixed }, 
   role: { type: String, enum: ["user", "admin"], default: "user" },
 }, { timestamps: true });
 

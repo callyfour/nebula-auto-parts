@@ -10,6 +10,7 @@ const ProfilePage = () => {
     gender: "",
     address: "",
     profilePicture: null,
+    authProvider: "local", // 👈 added
   });
   const [imageFile, setImageFile] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -58,6 +59,7 @@ const ProfilePage = () => {
         gender: data.gender || "",
         address: data.address || "",
         profilePicture: data.profilePicture || null,
+        authProvider: data.authProvider || "local", // 👈 set here
       });
       setProfileExists(true);
       setMessage(null);
@@ -103,7 +105,8 @@ const ProfilePage = () => {
       formData.append("address", form.address);
       formData.append("category", "profile");
 
-      if (imageFile) {
+      // Only append if local user
+      if (imageFile && form.authProvider !== "google") {
         formData.append("profilePicture", imageFile);
       }
 
@@ -151,9 +154,21 @@ const ProfilePage = () => {
     if (preview) {
       return preview;
     }
-    if (form.profilePicture && form.profilePicture._id) {
+    if (!form.profilePicture) return "";
+
+    // Google users → direct URL
+    if (
+      form.authProvider === "google" &&
+      typeof form.profilePicture === "string"
+    ) {
+      return form.profilePicture;
+    }
+
+    // Local users → fetch from DB
+    if (form.profilePicture._id) {
       return `${API_URL}/api/profile-picture/${form.profilePicture._id}`;
     }
+
     return "";
   };
 
@@ -190,7 +205,6 @@ const ProfilePage = () => {
             onError={(e) => {
               e.target.src = "";
               e.target.style.display = "none";
-              // let the placeholder show
             }}
           />
           <div
@@ -208,16 +222,22 @@ const ProfilePage = () => {
             type="file"
             accept="image/*"
             onChange={handleFileChange}
-            disabled={saving}
+            disabled={saving || form.authProvider === "google"} // 👈 block Google users
             id="profile-picture-input"
           />
           <label htmlFor="profile-picture-input" className="file-input-label">
-            {form.profilePicture ? "Change Picture" : "Upload Picture"}
+            {form.profilePicture
+              ? form.authProvider === "google"
+                ? "Google Account Picture" // 👈 show locked
+                : "Change Picture"
+              : "Upload Picture"}
           </label>
         </div>
 
         <div className="profile-name">{form.name || "Your Name"}</div>
-        <div className="profile-role">User</div>
+        <div className="profile-role">
+          {form.authProvider === "google" ? "Google User" : "User"}
+        </div>
 
         {message && (
           <div
