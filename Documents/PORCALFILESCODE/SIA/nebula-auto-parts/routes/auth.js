@@ -1,4 +1,3 @@
-// routes/auth.js
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -6,6 +5,7 @@ const mongoose = require("mongoose");
 const multer = require("multer");
 const { GridFsStorage } = require("multer-gridfs-storage");
 const Grid = require("gridfs-stream");
+const { google } = require("googleapis");
 
 const User = require("../../models/user");
 
@@ -33,7 +33,7 @@ const upload = multer({ storage });
 
 // ===== AUTH MIDDLEWARE =====
 const authMiddleware = (req, res, next) => {
-  const token = req.headers.authorization?.split(" ")[1]; // "Bearer <token>"
+  const token = req.headers.authorization?.split(" ")[1];
   if (!token) return res.status(401).json({ message: "No token provided" });
 
   try {
@@ -41,12 +41,19 @@ const authMiddleware = (req, res, next) => {
       token,
       process.env.JWT_SECRET || "fallback_secret"
     );
-    req.user = decoded; // Attach user id to request
+    req.user = decoded;
     next();
   } catch (err) {
     return res.status(401).json({ message: "Invalid or expired token" });
   }
 };
+
+// ===== GOOGLE OAUTH SETUP =====
+const oauth2Client = new google.auth.OAuth2(
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET,
+  process.env.GOOGLE_REDIRECT_URI // must match Google Console
+);
 
 // ===== REGISTER =====
 router.post("/register", upload.single("profilePicture"), async (req, res) => {
@@ -154,7 +161,7 @@ router.get("/profile", authMiddleware, async (req, res) => {
   }
 });
 
-// ===== UPDATE PROFILE (with optional picture upload) =====
+// ===== UPDATE PROFILE =====
 router.put(
   "/profile",
   authMiddleware,
@@ -164,10 +171,7 @@ router.put(
       const { name, email, phone, gender, address } = req.body;
 
       const updateData = { name, email, phone, gender, address };
-
-      if (req.file) {
-        updateData.profilePicture = req.file.filename;
-      }
+      if (req.file) updateData.profilePicture = req.file.filename;
 
       const updatedUser = await User.findByIdAndUpdate(
         req.user.id,
@@ -194,6 +198,69 @@ router.get("/profile/picture/:filename", async (req, res) => {
   } catch (err) {
     console.error("❌ Fetch picture error:", err);
     res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ===== GOOGLE LOGIN ROUTES =====
+router.get("/google", (req, res) => {
+  const url = oauth2Client.generateAuthUrl({
+    access_type: "offline",
+    prompt: "consent",
+    scope: [
+      "https://www.googleapis.com/auth/userinfo.profile",
+      "https://www.googleapis.com/auth/userinfo.email",
+    ],
+  });
+  res.redirect(url);
+});
+
+router.get("/google/callback", async (req, res) => {
+  try {
+    const { code } = req.query;
+    const { tokens } = await oauth2Client.getToken(code);
+    oauth2Client.setCredentials(tokens);
+
+    // Get Google profile
+    const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
+    const { data: profile } = await oauth2.userinfo.get();
+
+    let user = await User.findOne({ email: profile.email });
+    if (!user) {
+      user = new User({
+        googleId: profile.id,
+        name: profile.name,
+        email: profile.email,
+        profilePicture: profile.picture,
+        role: "user",
+      });
+      await user.save();
+    }
+
+    // JWT
+    const token = jwt.sign(
+      { id: user._id, email: user.email, role: user.role },
+      process.env.JWT_SECRET || "fallback_secret",
+      { expiresIn: "7d" }
+    );
+
+    if (process.env.FRONTEND_URL) {
+      res.redirect(
+        `${process.env.FRONTEND_URL}/auth-success?token=${token}&user=${encodeURIComponent(
+          JSON.stringify({
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            profilePicture: user.profilePicture,
+          })
+        )}`
+      );
+    } else {
+      res.json({ success: true, token, user });
+    }
+  } catch (err) {
+    console.error("❌ Google login error:", err);
+    res.status(500).json({ message: "Google login failed" });
   }
 });
 
