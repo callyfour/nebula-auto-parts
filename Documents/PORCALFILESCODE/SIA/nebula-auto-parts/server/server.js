@@ -86,7 +86,8 @@ const userSchema = new mongoose.Schema({
   gender: { type: String, enum: ["Male", "Female"] },
   address: String,
   role: { type: String, enum: ["user", "admin"], default: "user" },
-  profilePicture: { type: String }, // ✅ store Google avatar URL or base64
+  profilePicture: { type: String }, 
+  authProvider: { type: String, enum: ["local", "google"], default: "local" },// ✅ store Google avatar URL or base64
 });
 
 const User = mongoose.model("User", userSchema, "users");
@@ -159,38 +160,34 @@ app.get("/api/auth/google", (req, res) => {
 app.get("/api/auth/google/callback", async (req, res) => {
   try {
     const { code } = req.query;
-    
-    // ✅ Exchange code for tokens
     const { tokens } = await oauth2Client.getToken(code);
     oauth2Client.setCredentials(tokens);
 
-    // ✅ Fetch Google user profile
     const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
     const { data: profile } = await oauth2.userinfo.get();
 
-    // ✅ Check if user exists
-    let user = await User.findOne({ email: profile.email });
+    const email = profile.email.toLowerCase();
+
+    let user = await User.findOne({ email });
     if (!user) {
       user = new User({
         googleId: profile.id,
         name: profile.name,
-        email: profile.email,
-        profilePicture: profile.picture, 
+        email,
+        profilePicture: profile.picture,
         role: "user",
-        authProvider: "google", // 👈
+        authProvider: "google",
       });
       await user.save();
     }
 
-
-    // ✅ Create JWT
     const token = jwt.sign(
       { id: user._id, email: user.email, role: user.role },
-      process.env.JWT_SECRET,
+      JWT_SECRET,
       { expiresIn: "1d" }
     );
 
-    // ✅ Redirect or JSON
+    // safer: return JSON if API-based login
     if (process.env.FRONTEND_URL) {
       res.redirect(
         `${process.env.FRONTEND_URL}/auth-success?token=${token}&user=${encodeURIComponent(
@@ -211,6 +208,7 @@ app.get("/api/auth/google/callback", async (req, res) => {
     res.status(500).json({ message: "Google login failed" });
   }
 });
+
 
 
 
@@ -288,7 +286,7 @@ app.post("/api/auth/register", async (req, res) => {
       gender,
       address,
       role: role || "user",
-       authProvider: "local",
+      authProvider: "local",
     });
 
     await user.save();
