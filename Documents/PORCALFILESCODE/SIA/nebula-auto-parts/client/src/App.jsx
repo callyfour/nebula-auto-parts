@@ -15,7 +15,8 @@ import Checkout from "./Checkout/Checkout.jsx";
 import ProfilePage from "./ProfilePage/ProfilePage.jsx";
 import AdminDashboard from "./AdminDashboard/AdminDashboard.jsx";
 import ScrollToTop from "./ScrollToTop.jsx";
-import GoogleCallback from "./GoogleCallback/GoogleCallback.jsx"; // ✅ import the new callback page
+import GoogleCallback from "./GoogleCallback/GoogleCallback.jsx";
+import AuthSuccess from "./AuthSuccess/AuthSuccess.jsx"; // ✅ import the new callback page
 import "boxicons/css/boxicons.min.css";
 
 function App() {
@@ -47,6 +48,7 @@ function App() {
 
         {/* ✅ Google OAuth success callback route */}
         <Route path="/google-success" element={<GoogleCallback />} />
+        <Route path="/auth-success" element={<AuthSuccess />} />
       </Routes>
       <Footer />
     </>
