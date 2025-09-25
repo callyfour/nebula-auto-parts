@@ -3,7 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import Navbar from "../Navbar/Navbar.jsx";
 import "./Login.css";
 import promoPhoto from "../assets/promo-photo.png";
-import googleLogo from "../assets/google-logo.png"; // ✅ Add a Google logo image in assets
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -97,7 +96,6 @@ export default function Login() {
               className="google-btn"
               onClick={handleGoogleLogin}
             >
-              <img src={googleLogo} alt="Google" className="google-logo" />
               Continue with Google
             </button>
 
