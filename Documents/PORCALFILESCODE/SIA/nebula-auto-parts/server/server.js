@@ -146,8 +146,9 @@ app.get("/api/auth/google", (req, res) => {
     access_type: "offline",
     prompt: "consent",
     scope: [
-      "https://www.googleapis.com/auth/userinfo.profile",
-      "https://www.googleapis.com/auth/userinfo.email"
+      "openid",
+      "profile",
+      "email"
     ],
   });
   res.redirect(url);
