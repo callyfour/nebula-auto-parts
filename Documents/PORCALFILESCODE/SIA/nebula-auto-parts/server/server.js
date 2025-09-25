@@ -7,6 +7,8 @@ const jwt = require("jsonwebtoken");
 const multer = require("multer");
 const { GridFSBucket } = require("mongodb");
 const path = require("path");
+const { google } = require("googleapis");
+
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -76,15 +78,17 @@ const productSchema = new mongoose.Schema({
 const Product = mongoose.model("Product", productSchema, "productItems");
 
 const userSchema = new mongoose.Schema({
+  googleId: { type: String }, // ✅ add this
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
+  password: { type: String }, // optional for Google users
   phone: String,
   gender: { type: String, enum: ["Male", "Female"] },
   address: String,
   role: { type: String, enum: ["user", "admin"], default: "user" },
-  profilePicture: { type: mongoose.Schema.Types.ObjectId, ref: "Image" },
+  profilePicture: { type: String }, // ✅ store Google avatar URL or base64
 });
+
 const User = mongoose.model("User", userSchema, "users");
 
 const cartItemSchema = new mongoose.Schema({
