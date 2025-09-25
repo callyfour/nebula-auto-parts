@@ -469,92 +469,54 @@ app.put("/api/user/profile", authMiddleware, upload.single("profilePicture"), as
  * POST profile picture (upload and set as user's profilePicture)
  * Accepts multipart/form-data with 'profilePicture' field.
  */
-app.post("/api/profile-picture", authMiddleware, upload.single("profilePicture"), async (req, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+app.put(
+  "/api/user/profile",
+  authMiddleware,
+  upload.single("profilePicture"), // multer
+  async (req, res) => {
+    try {
+      const { name, email, phone, gender, address } = req.body;
 
-    // Create and save new image
-    const img = new Image({
-      filename: req.file.originalname,
-      data: req.file.buffer.toString("base64"),
-      contentType: req.file.mimetype,
-      uploadedBy: req.user.id,
-      size: req.file.size,
-      category: "profile",
-    });
-    await img.save();
+      // Check if email is unique
+      if (email) {
+        const exists = await User.findOne({ email, _id: { $ne: req.user.id } });
+        if (exists) {
+          return res.status(400).json({ message: "Email already in use" });
+        }
+      }
 
-    // Update user's profilePicture reference
-    await User.findByIdAndUpdate(req.user.id, { profilePicture: img._id });
+      const updateData = { name, email, phone, gender, address };
 
-    res.json({ success: true, imageId: img._id });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
+      // Handle profile picture upload
+      if (req.file) {
+        const img = new Image({
+          filename: req.file.originalname,
+          data: req.file.buffer.toString("base64"),
+          contentType: req.file.mimetype,
+          uploadedBy: req.user.id,
+          size: req.file.size,
+          category: "profile",
+        });
+        await img.save();
+        updateData.profilePicture = img._id;
+      }
 
-/**
- * GET profile picture by ObjectId
- */
-app.get("/api/user/profile/picture/:id", async (req, res) => {
-  try {
-    const image = await Image.findById(req.params.id);
-    if (!image) return res.status(404).json({ message: "Image not found" });
+      const updatedUser = await User.findByIdAndUpdate(req.user.id, updateData, {
+        new: true,
+      }).select("-password");
 
-    res.set("Content-Type", image.contentType);
-    res.send(Buffer.from(image.data, "base64"));
-  } catch (err) {
-    res.status(500).json({ message: "Server error" });
-  }
-});
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
 
-
-/**
- * PUT profile picture (set profilePicture by existing imageId)
- * Body: { imageId }
- */
-app.put("/api/profile-picture", authMiddleware, async (req, res) => {
-  try {
-    const { imageId } = req.body;
-    if (!imageId) return res.status(400).json({ message: "Image ID required" });
-
-    // Ensure image exists and belongs to user
-    const image = await Image.findById(imageId);
-    if (!image) return res.status(404).json({ message: "Image not found" });
-    if (image.uploadedBy.toString() !== req.user.id) {
-      return res.status(403).json({ message: "Forbidden" });
+      res.json(updatedUser);
+    } catch (err) {
+      console.error("❌ Update profile error:", err);
+      res.status(500).json({ message: "Failed to update profile" });
     }
-
-    await User.findByIdAndUpdate(req.user.id, { profilePicture: imageId });
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ message: "Server error" });
   }
-});
+);
 
-/**
- * DELETE profile picture by ObjectId
- */
-app.delete("/api/profile-picture/:id", authMiddleware, async (req, res) => {
-  try {
-    const image = await Image.findById(req.params.id);
-    if (!image) return res.status(404).json({ message: "Image not found" });
-
-    // Only allow owner or admin
-    if (image.uploadedBy.toString() !== req.user.id && req.user.role !== "admin") {
-      return res.status(403).json({ message: "Forbidden" });
-    }
-
-    await image.deleteOne();
-
-    // Optionally, unset profilePicture if current
-    await User.updateMany({ profilePicture: req.params.id }, { $unset: { profilePicture: "" } });
-
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ message: "Server error" });
-  }
-});
 
 /* ======================
    🔹 PASSWORD ROUTE
