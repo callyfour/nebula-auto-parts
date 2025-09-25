@@ -59,7 +59,7 @@ const ProfilePage = () => {
         gender: data.gender || "",
         address: data.address || "",
         profilePicture: data.profilePicture || null,
-        authProvider: data.authProvider || "local", // 👈 set here
+        authProvider: data.authProvider || "local",
       });
       setProfileExists(true);
       setMessage(null);
@@ -105,8 +105,8 @@ const ProfilePage = () => {
       formData.append("address", form.address);
       formData.append("category", "profile");
 
-      // Only append if local user
-      if (imageFile && form.authProvider !== "google") {
+      // ✅ Allow local users to upload profile picture
+      if (form.authProvider === "local" && imageFile) {
         formData.append("profilePicture", imageFile);
       }
 
@@ -133,6 +133,7 @@ const ProfilePage = () => {
         return;
       }
 
+      // ✅ Refresh profile after saving
       await fetchProfile();
 
       setImageFile(null);
@@ -143,17 +144,16 @@ const ProfilePage = () => {
       setMessage("✅ Profile updated successfully!");
       setTimeout(() => setMessage(null), 3000);
     } catch (err) {
+      console.error("❌ Save error:", err);
       setMessage("An error occurred. Please try again.");
     } finally {
       setSaving(false);
     }
   };
 
-  // Profile picture URL logic
+  // ✅ Profile picture URL logic
   const getProfilePictureUrl = () => {
-    if (preview) {
-      return preview;
-    }
+    if (preview) return preview;
     if (!form.profilePicture) return "";
 
     // Google users → direct URL
@@ -164,9 +164,9 @@ const ProfilePage = () => {
       return form.profilePicture;
     }
 
-    // Local users → fetch from DB
-    if (form.profilePicture._id) {
-      return `${API_URL}/api/profile-picture/${form.profilePicture._id}`;
+    // Local users → fetch from backend by filename
+    if (typeof form.profilePicture === "string") {
+      return `${API_URL}/api/user/profile/picture/${form.profilePicture}`;
     }
 
     return "";
@@ -199,9 +199,7 @@ const ProfilePage = () => {
           <img
             src={getProfilePictureUrl()}
             alt="Profile"
-            style={{
-              display: getProfilePictureUrl() ? "block" : "none",
-            }}
+            style={{ display: getProfilePictureUrl() ? "block" : "none" }}
             onError={(e) => {
               e.target.src = "";
               e.target.style.display = "none";
@@ -222,13 +220,13 @@ const ProfilePage = () => {
             type="file"
             accept="image/*"
             onChange={handleFileChange}
-            disabled={saving || form.authProvider === "google"} // 👈 block Google users
+            disabled={saving || form.authProvider === "google"} // block Google users
             id="profile-picture-input"
           />
           <label htmlFor="profile-picture-input" className="file-input-label">
             {form.profilePicture
               ? form.authProvider === "google"
-                ? "Google Account Picture" // 👈 show locked
+                ? "Google Account Picture"
                 : "Change Picture"
               : "Upload Picture"}
           </label>

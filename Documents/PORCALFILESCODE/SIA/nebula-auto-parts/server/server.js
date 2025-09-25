@@ -78,19 +78,20 @@ const productSchema = new mongoose.Schema({
 const Product = mongoose.model("Product", productSchema, "productItems");
 
 const userSchema = new mongoose.Schema({
-  googleId: { type: String }, // ✅ add this
+  googleId: { type: String },
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
-  password: { type: String }, // optional for Google users
+  password: { type: String },
   phone: String,
   gender: { type: String, enum: ["Male", "Female"] },
   address: String,
   role: { type: String, enum: ["user", "admin"], default: "user" },
-  profilePicture: { type: String }, 
-  authProvider: { type: String, enum: ["local", "google"], default: "local" },// ✅ store Google avatar URL or base64
+  profilePicture: { type: mongoose.Schema.Types.Mixed }, // 👈 can be string (URL) or ObjectId
+  authProvider: { type: String, enum: ["local", "google"], default: "local" },
 });
 
-const User = mongoose.model("User", userSchema, "users");
+
+
 
 const cartItemSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
@@ -170,16 +171,17 @@ app.get("/api/auth/google/callback", async (req, res) => {
 
     let user = await User.findOne({ email });
     if (!user) {
-      user = new User({
-        googleId: profile.id,
-        name: profile.name,
-        email,
-        profilePicture: profile.picture,
-        role: "user",
-        authProvider: "google",
-      });
-      await user.save();
-    }
+        user = new User({
+          googleId: profile.id,
+          name: profile.name,
+          email,
+          profilePicture: profile.picture, // 👈 keep URL as string
+          role: "user",
+          authProvider: "google",
+        });
+        await user.save();
+      }
+
 
     const token = jwt.sign(
       { id: user._id, email: user.email, role: user.role },
@@ -439,29 +441,29 @@ app.put("/api/user/profile", authMiddleware, upload.single("profilePicture"), as
 
     const updateData = { name, email, phone, gender, address };
 
-    // If a file was uploaded, create an Image document and link it
     if (req.file) {
+      // save new image
       const img = new Image({
         filename: req.file.originalname,
         data: req.file.buffer.toString("base64"),
         contentType: req.file.mimetype,
         uploadedBy: req.user.id,
         size: req.file.size,
-        category: req.body.category || "profile",
+        category: "profile",
       });
       await img.save();
-      updateData.profilePicture = img._id;
+      updateData.profilePicture = img._id; // store ObjectId
     }
 
     const updatedUser = await User.findByIdAndUpdate(req.user.id, updateData, { new: true })
-      .select("-password")
-      .populate("profilePicture", "-data");
+      .select("-password");
 
     res.json(updatedUser);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 /**
  * POST profile picture (upload and set as user's profilePicture)
@@ -494,7 +496,7 @@ app.post("/api/profile-picture", authMiddleware, upload.single("profilePicture")
 /**
  * GET profile picture by ObjectId
  */
-app.get("/api/profile-picture/:id", async (req, res) => {
+app.get("/api/user/profile/picture/:id", async (req, res) => {
   try {
     const image = await Image.findById(req.params.id);
     if (!image) return res.status(404).json({ message: "Image not found" });
@@ -505,6 +507,7 @@ app.get("/api/profile-picture/:id", async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
+
 
 /**
  * PUT profile picture (set profilePicture by existing imageId)
