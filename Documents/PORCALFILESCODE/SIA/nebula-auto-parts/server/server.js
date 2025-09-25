@@ -160,35 +160,60 @@ app.get("/api/auth/google/callback", async (req, res) => {
   try {
     const { code } = req.query;
 
-    // ✅ Exchange code for tokens
+    // Exchange code for tokens
     const { tokens } = await oauth2Client.getToken(code);
     oauth2Client.setCredentials(tokens);
 
-    // ✅ Fetch Google user profile
+    // Fetch Google user profile
     const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
     const { data: profile } = await oauth2.userinfo.get();
 
-    // ✅ Check if user exists
+    // --- Fetch profile picture from Google and store in DB ---
+    let imageDoc = null;
+    if (profile.picture) {
+      const axios = require("axios");
+      const response = await axios.get(profile.picture, { responseType: "arraybuffer" });
+      const buffer = Buffer.from(response.data, "binary");
+
+      // Save into Image collection
+      imageDoc = new Image({
+        filename: `google-${profile.id}.jpg`,
+        data: buffer,
+        contentType: response.headers["content-type"] || "image/jpeg",
+        uploadedBy: null, // Google account at creation (can update later)
+        size: buffer.length,
+        category: "profile",
+      });
+      await imageDoc.save();
+    }
+
+    // --- Check if user exists ---
     let user = await User.findOne({ email: profile.email });
     if (!user) {
       user = new User({
         googleId: profile.id,
         name: profile.name,
         email: profile.email,
-        profilePicture: profile.picture,
+        profilePicture: imageDoc ? imageDoc._id : null, // ✅ store ObjectId instead of URL
         role: "user",
       });
       await user.save();
+
+      // Update image with userId as uploader
+      if (imageDoc) {
+        imageDoc.uploadedBy = user._id;
+        await imageDoc.save();
+      }
     }
 
-    // ✅ Create JWT
+    // --- Create JWT ---
     const token = jwt.sign(
       { id: user._id, email: user.email, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: "1d" }
     );
 
-    // ✅ Redirect or JSON
+    // Redirect or JSON
     if (process.env.FRONTEND_URL) {
       res.redirect(
         `${process.env.FRONTEND_URL}/auth-success?token=${token}&user=${encodeURIComponent(
@@ -197,7 +222,7 @@ app.get("/api/auth/google/callback", async (req, res) => {
             name: user.name,
             email: user.email,
             role: user.role,
-            profilePicture: user.profilePicture,
+            profilePicture: user.profilePicture, // ✅ ObjectId now
           })
         )}`
       );
@@ -209,6 +234,7 @@ app.get("/api/auth/google/callback", async (req, res) => {
     res.status(500).json({ message: "Google login failed" });
   }
 });
+
 
 
 
