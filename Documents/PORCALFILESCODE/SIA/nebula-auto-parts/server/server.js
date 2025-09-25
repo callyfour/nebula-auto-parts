@@ -140,63 +140,78 @@ function authMiddleware(req, res, next) {
    🔹 ROUTES
    ====================== */
 
-   /* ======================
-   🔹 GOOGLE AUTH ROUTES
-   ====================== */
+import jwt from "jsonwebtoken";
+import { google } from "googleapis";
+import User from "./models/User.js"; // adjust path if needed
 
+// Google callback route
 app.get("/api/auth/google/callback", async (req, res) => {
   try {
     const { code } = req.query;
 
-    // Exchange code for tokens
+    // ✅ Exchange code for tokens
     const { tokens } = await oauth2Client.getToken(code);
     oauth2Client.setCredentials(tokens);
 
-    // Fetch Google user profile
+    // ✅ Fetch Google user profile
     const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
     const { data: profile } = await oauth2.userinfo.get();
 
-    // Check if user exists in Mongo
+    // ✅ Check if user exists in Mongo
     let user = await User.findOne({ email: profile.email });
     if (!user) {
       user = new User({
-        googleId: profile.id,            // ✅ save Google ID
+        googleId: profile.id,
         name: profile.name,
         email: profile.email,
-        profilePicture: profile.picture, // ✅ store Google avatar
+        profilePicture: profile.picture,
         role: "user",
       });
       await user.save();
     }
 
-    // Create JWT
+    // ✅ Create JWT
     const token = jwt.sign(
       { id: user._id, email: user.email, role: user.role },
-      JWT_SECRET,
+      process.env.JWT_SECRET,
       { expiresIn: "1d" }
     );
 
-    // ✅ Option 1: Send JSON back
-    res.json({
-      success: true,
-      message: "Google login successful",
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        profilePicture: user.profilePicture,
-      },
-    });
-
-    // ✅ Option 2: Redirect with token (for frontend apps)
-    // res.redirect(`http://localhost:3000?token=${token}`);
+    // Decide response type:
+    if (process.env.FRONTEND_URL) {
+      // 🔥 Redirect back to your frontend with token + user
+      res.redirect(
+        `${process.env.FRONTEND_URL}/auth-success?token=${token}&user=${encodeURIComponent(
+          JSON.stringify({
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            profilePicture: user.profilePicture,
+          })
+        )}`
+      );
+    } else {
+      // 🔥 API style JSON response
+      res.json({
+        success: true,
+        message: "Google login successful",
+        token,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          profilePicture: user.profilePicture,
+        },
+      });
+    }
   } catch (err) {
-    console.error(err);
+    console.error("Google login error:", err);
     res.status(500).json({ message: "Google login failed" });
   }
 });
+
 
 
 
