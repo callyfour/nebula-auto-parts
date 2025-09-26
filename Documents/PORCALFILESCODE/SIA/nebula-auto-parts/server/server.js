@@ -78,18 +78,17 @@ const productSchema = new mongoose.Schema({
 const Product = mongoose.model("Product", productSchema, "productItems");
 
 const userSchema = new mongoose.Schema({
-  googleId: { type: String },
+  googleId: { type: String }, // ✅ add this
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
-  password: { type: String },
+  password: { type: String }, // optional for Google users
   phone: String,
   gender: { type: String, enum: ["Male", "Female"] },
   address: String,
   role: { type: String, enum: ["user", "admin"], default: "user" },
-  profilePicture: { type: mongoose.Schema.Types.Mixed }, // 👈 can be string (URL) or ObjectId
-  authProvider: { type: String, enum: ["local", "google"], default: "local" },
+  profilePicture: { type: String }, 
+  authProvider: { type: String, enum: ["local", "google"], default: "local" },// ✅ store Google avatar URL or base64
 });
-
 
 
 
@@ -171,17 +170,16 @@ app.get("/api/auth/google/callback", async (req, res) => {
 
     let user = await User.findOne({ email });
     if (!user) {
-        user = new User({
-          googleId: profile.id,
-          name: profile.name,
-          email,
-          profilePicture: profile.picture, // 👈 keep URL as string
-          role: "user",
-          authProvider: "google",
-        });
-        await user.save();
-      }
-
+      user = new User({
+        googleId: profile.id,
+        name: profile.name,
+        email,
+        profilePicture: profile.picture,
+        role: "user",
+        authProvider: "google",
+      });
+      await user.save();
+    }
 
     const token = jwt.sign(
       { id: user._id, email: user.email, role: user.role },
@@ -441,22 +439,23 @@ app.put("/api/user/profile", authMiddleware, upload.single("profilePicture"), as
 
     const updateData = { name, email, phone, gender, address };
 
+    // If a file was uploaded, create an Image document and link it
     if (req.file) {
-      // save new image
       const img = new Image({
         filename: req.file.originalname,
         data: req.file.buffer.toString("base64"),
         contentType: req.file.mimetype,
         uploadedBy: req.user.id,
         size: req.file.size,
-        category: "profile",
+        category: req.body.category || "profile",
       });
       await img.save();
-      updateData.profilePicture = img._id; // store ObjectId
+      updateData.profilePicture = img._id;
     }
 
     const updatedUser = await User.findByIdAndUpdate(req.user.id, updateData, { new: true })
-      .select("-password");
+      .select("-password")
+      .populate("profilePicture", "-data");
 
     res.json(updatedUser);
   } catch (err) {
@@ -464,59 +463,95 @@ app.put("/api/user/profile", authMiddleware, upload.single("profilePicture"), as
   }
 });
 
-
 /**
  * POST profile picture (upload and set as user's profilePicture)
  * Accepts multipart/form-data with 'profilePicture' field.
  */
-app.put(
-  "/api/user/profile",
-  authMiddleware,
-  upload.single("profilePicture"), // multer
-  async (req, res) => {
-    try {
-      const { name, email, phone, gender, address } = req.body;
+app.post("/api/profile-picture", authMiddleware, upload.single("profilePicture"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
-      // Check if email is unique
-      if (email) {
-        const exists = await User.findOne({ email, _id: { $ne: req.user.id } });
-        if (exists) {
-          return res.status(400).json({ message: "Email already in use" });
-        }
-      }
+    // Create and save new image
+    const img = new Image({
+      filename: req.file.originalname,
+      data: req.file.buffer.toString("base64"),
+      contentType: req.file.mimetype,
+      uploadedBy: req.user.id,
+      size: req.file.size,
+      category: "profile",
+    });
+    await img.save();
 
-      const updateData = { name, email, phone, gender, address };
+    // Update user's profilePicture reference
+    await User.findByIdAndUpdate(req.user.id, { profilePicture: img._id });
 
-      // Handle profile picture upload
-      if (req.file) {
-        const img = new Image({
-          filename: req.file.originalname,
-          data: req.file.buffer.toString("base64"),
-          contentType: req.file.mimetype,
-          uploadedBy: req.user.id,
-          size: req.file.size,
-          category: "profile",
-        });
-        await img.save();
-        updateData.profilePicture = img._id;
-      }
-
-      const updatedUser = await User.findByIdAndUpdate(req.user.id, updateData, {
-        new: true,
-      }).select("-password");
-
-      if (!updatedUser) {
-        return res.status(404).json({ message: "User not found" });
-      }
-
-      res.json(updatedUser);
-    } catch (err) {
-      console.error("❌ Update profile error:", err);
-      res.status(500).json({ message: "Failed to update profile" });
-    }
+    res.json({ success: true, imageId: img._id });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
-);
+});
 
+/**
+ * GET profile picture by ObjectId
+ */
+app.get("/api/profile-picture/:id", async (req, res) => {
+  try {
+    const image = await Image.findById(req.params.id);
+    if (!image) return res.status(404).json({ message: "Image not found" });
+
+    res.set("Content-Type", image.contentType);
+    res.send(Buffer.from(image.data, "base64"));
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/**
+ * PUT profile picture (set profilePicture by existing imageId)
+ * Body: { imageId }
+ */
+app.put("/api/profile-picture", authMiddleware, async (req, res) => {
+  try {
+    const { imageId } = req.body;
+    if (!imageId) return res.status(400).json({ message: "Image ID required" });
+
+    // Ensure image exists and belongs to user
+    const image = await Image.findById(imageId);
+    if (!image) return res.status(404).json({ message: "Image not found" });
+    if (image.uploadedBy.toString() !== req.user.id) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    await User.findByIdAndUpdate(req.user.id, { profilePicture: imageId });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/**
+ * DELETE profile picture by ObjectId
+ */
+app.delete("/api/profile-picture/:id", authMiddleware, async (req, res) => {
+  try {
+    const image = await Image.findById(req.params.id);
+    if (!image) return res.status(404).json({ message: "Image not found" });
+
+    // Only allow owner or admin
+    if (image.uploadedBy.toString() !== req.user.id && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    await image.deleteOne();
+
+    // Optionally, unset profilePicture if current
+    await User.updateMany({ profilePicture: req.params.id }, { $unset: { profilePicture: "" } });
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
+  }
+});
 
 /* ======================
    🔹 PASSWORD ROUTE
